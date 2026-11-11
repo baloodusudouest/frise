@@ -35,7 +35,7 @@ Fichier à lire en premier dans une nouvelle session, et à mettre à jour à ch
 - À l'ouverture : les temps forts reconnus par leur nom (mariage, anniversaire, baptême, communion, noël, vacances…), année par année ; un geste déplie tous les évènements d'une année.
 - Dates aberrantes et dates de naissance manquantes : attendre le passage de Millésime avant de fixer une règle.
 - Style « chemin narratif », vertical sur iPhone ; une photo phare par évènement + galerie.
-- Usages : consultation par Julien et Yves, invités, impression (page du journal de naissance).
+- Usages : consultation par les habitants de la maison, invités, impression (page du journal de naissance).
 - Home Assistant : carte Lovelace et extension du diaporama invités, plus tard ; aucune automatisation.
 - Technique : celle du dépôt socle (FastAPI, Svelte 5, Tailwind 4, shadcn-svelte), validée sur le NAS le 11/11/2026.
 - Ordre après la V1 : un mois d'usage → livret + carte HA → Treemich → vidéo.
