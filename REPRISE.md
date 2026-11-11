@@ -4,24 +4,20 @@ Fichier à lire en premier dans une nouvelle session, et à mettre à jour à ch
 
 ## État (11/11/2026)
 
-- **Étape 0 en cours : la sonde d'Immich.** Sonde 0.1.1, 7 tests verts.
-- Premier passage sur le vrai Immich (sonde 0.1.0, 11/11 à 10:12) : partiel. Le comptage par personne a été refusé (droit `person.statistics` absent de la clé), donc l'échantillon de personnes, les vignettes et les visages n'ont pas été mesurés.
-- La 0.1.1 étudie quand même un échantillon quand ce droit manque, et mesure l'étendue réelle des dates dans chaque dossier.
-- Pas de dossier de conception, pas d'appli.
+- **Étape 0 terminée.** La sonde a tourné deux fois sur le vrai Immich ; résultats et conséquences dans [`docs/sonde-immich-2026-11-11.md`](docs/sonde-immich-2026-11-11.md).
+- Pas encore de dossier de conception, pas d'appli.
 
-## Ce que le premier passage a déjà établi
+## Ce que la sonde a tranché
 
-- Immich 3.4.0. La clé en lecture seule suffit pour les personnes, les dossiers et les albums.
-- 3 443 personnes dont 220 nommées ; 219 au format « Prénom NOM » ; 89 seulement ont une date de naissance.
-- 1 130 dossiers. Date portée par le chemin : au mois pour 546, à l'année pour 321, **au jour pour 198 seulement**, aucune pour 65.
-- **L'hypothèse de la V1 (« dossiers AAAA-MM-JJ évènement ») est fausse pour plus de 80 % des dossiers.** Formes dominantes : `Pellicule/AAAA/AAAA texte` (253), `Pellicule/AAAA/AAAA-MM-JJ texte` (149), `Photos numérisées/texte/AAAA/MM[/texte]` (environ 300), `Pellicule/AAAA/AAAA-MM texte` (112), `/data/library/…/AAAA/AAAA-MM texte` (63, déjà migrés dans le stockage Immich).
-- Types d'évènements lisibles dans les noms : anniversaire (avec « anniv », « annif », « ans »), vacances, mariage, noël, séminaire, communion, baptême, repas, spectacle, voyage, week-end.
-- 70 albums.
+- L'hypothèse « dossiers AAAA-MM-JJ évènement » est fausse : 198 dossiers sur 1 130 seulement sont datés au jour.
+- Mais un dossier est bien un évènement court : 8 dossiers sur 10 tiennent en 3 jours ou moins. **Évènement = dossier, daté par ses photos, nommé par le dossier.**
+- Lire Immich à la demande suffit (4 980 photos en 2,5 s).
+- Une frise peut dépasser 500 dossiers : il faut des niveaux et des temps forts.
 
 ## Prochaine étape
 
-1. Julien relance la sonde 0.1.1 (image re-téléchargée), idéalement après avoir ajouté le droit `person.statistics` à la clé, et transmet le rapport.
-2. Écrire dans `docs/dossier.md` la section technique à partir des deux rapports, puis les 5 autres sections.
+1. Trancher avec Julien les 4 questions ouvertes par la sonde (dossiers longs, taille de la frise, migration vers le stockage Immich, dates aberrantes).
+2. Écrire `docs/dossier.md` (6 sections).
 3. Un passage au conseil, puis le plan d'implémentation.
 
 ## Décisions tranchées
@@ -35,19 +31,11 @@ Fichier à lire en premier dans une nouvelle session, et à mettre à jour à ch
 - Technique : celle du dépôt socle (FastAPI, Svelte 5, Tailwind 4, shadcn-svelte), validée sur le NAS le 11/11/2026.
 - Ordre après la V1 : un mois d'usage → livret + carte HA → Treemich → vidéo.
 
-## Ce que la sonde doit encore trancher
-
-- Un dossier daté seulement à l'année ou au mois correspond-il à un évènement court ? (étendue des dates des photos dans chaque dossier)
-- La date du dossier concorde-t-elle avec la date de la photo, surtout pour les photos numérisées ?
-- La taille d'une frise : nombre d'évènements et de photos pour les personnes les plus photographiées.
-- Le temps de lecture : faut-il un cache local ou peut-on lire Immich à la demande ?
-- Le chemin `/data/library/…` : la bibliothèque est en cours de migration vers le stockage Immich ; Frise ne doit pas dépendre de la racine du chemin.
-
 ## Pièges
 
 - Les noms de points d'accès d'Immich changent selon les versions : la sonde note chaque refus au lieu de s'arrêter.
 - Le rapport ne doit jamais contenir de nom : un test le vérifie, le garder vert. Limite connue : les « premiers mots fréquents » laissent passer un prénom placé en tête de 3 dossiers ou plus.
-- Le droit `person.statistics` est distinct du droit de lecture des personnes dans Immich 3.
+- Dans Immich 3, les droits `person.statistics` (comptage) et `asset.view` (images) sont distincts des droits de lecture : la clé de l'appli doit les avoir tous.
 
 ## Non-objectifs de la V1
 
