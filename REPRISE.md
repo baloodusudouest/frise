@@ -4,7 +4,8 @@ Fichier à lire en premier dans une nouvelle session, et à mettre à jour à ch
 
 ## État (11/11/2026)
 
-- **Étape 0 terminée.** La sonde a tourné deux fois sur le vrai Immich ; résultats et conséquences dans [`docs/sonde-immich-2026-11-11.md`](docs/sonde-immich-2026-11-11.md).
+- **En attente de la migration vers le stockage Immich.**
+- Étape 0 terminée sur les dossiers. La sonde a tourné deux fois sur le vrai Immich ; résultats et conséquences dans [`docs/sonde-immich-2026-11-11.md`](docs/sonde-immich-2026-11-11.md).
 - Pas encore de dossier de conception, pas d'appli.
 
 ## Ce que la sonde a tranché
@@ -16,15 +17,23 @@ Fichier à lire en premier dans une nouvelle session, et à mettre à jour à ch
 
 ## Prochaine étape
 
-1. Trancher avec Julien les 4 questions ouvertes par la sonde (dossiers longs, taille de la frise, migration vers le stockage Immich, dates aberrantes).
-2. Écrire `docs/dossier.md` (6 sections).
-3. Un passage au conseil, puis le plan d'implémentation.
+**Frise est en attente** (décision du 11/11/2026). Elle reprend quand ces trois chantiers sont finis :
+
+1. Millésime : dater les photos non datées (les dates aberrantes et les dates de naissance manquantes se traitent là, pas dans Frise).
+2. Vérif dates photos : inscrire les dates dans les fichiers.
+3. Migration de la Pellicule vers le stockage Immich, avec les dossiers repris en albums.
+
+À la reprise : relancer la sonde sur les albums (elle ne mesure aujourd'hui que les dossiers), puis écrire `docs/dossier.md`, un passage au conseil, le plan.
 
 ## Décisions tranchées
 
 - Frise est le pilote de la méthode (dossier à 6 sections, sonde d'abord) et du design (minimalisme + bento, animation narrative permise ici).
 - Conteneur « frise » séparé ; fusion dans carnet envisagée après un mois stable.
-- V1 en lecture seule : dossiers + visages Immich. Rien n'est écrit dans Immich ni dans Treemich. La façon de reconnaître un évènement reste à trancher après la sonde (voir plus bas).
+- V1 en lecture seule : **albums** + visages Immich. Frise sera conçue directement sur les albums, après la migration ; pas de version intermédiaire sur les dossiers.
+- Un évènement est daté par ses photos, nommé par son album.
+- Un album qui s'étale sur plus de 30 jours est découpé automatiquement en moments, chacun placé à sa date.
+- À l'ouverture : les temps forts reconnus par leur nom (mariage, anniversaire, baptême, communion, noël, vacances…), année par année ; un geste déplie tous les évènements d'une année.
+- Dates aberrantes et dates de naissance manquantes : attendre le passage de Millésime avant de fixer une règle.
 - Style « chemin narratif », vertical sur iPhone ; une photo phare par évènement + galerie.
 - Usages : consultation par Julien et Yves, invités, impression (page du journal de naissance).
 - Home Assistant : carte Lovelace et extension du diaporama invités, plus tard ; aucune automatisation.
