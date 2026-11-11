@@ -1,0 +1,7 @@
+# Jamais de secret, de rapport ni de donnée personnelle dans le dépôt
+.env
+data/
+rapport-sonde-frise.*
+
+__pycache__/
+.pytest_cache/
