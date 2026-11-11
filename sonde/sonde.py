@@ -33,7 +33,7 @@ from pathlib import Path, PurePosixPath
 
 import requests
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 URL = os.environ.get("IMMICH_URL", "http://immich_server:2283").rstrip("/")
 CLE = os.environ.get("IMMICH_API_KEY", "")
@@ -221,7 +221,17 @@ def e_volumes():
     nommees = [p for p in PERSONNES if (p.get("name") or "").strip() and not p.get("isHidden")][:600]
     comptes = []
     for i, p in enumerate(nommees, 1):
-        comptes.append((api("GET", f"/people/{p['id']}/statistics").get("assets", 0), p["id"]))
+        try:
+            comptes.append((api("GET", f"/people/{p['id']}/statistics").get("assets", 0), p["id"]))
+        except Refus as r:
+            if r.statut != 403 or comptes:
+                raise
+            # Droit « person.statistics » absent : on étudie quand même un échantillon, pris à intervalles réguliers
+            pas = max(1, len(nommees) // max(1, ECHANTILLON))
+            for j, q in enumerate(nommees[::pas][:ECHANTILLON], 1):
+                ECHANT.append((f"P{j}", q["id"], None))
+            log("  comptage par personne refusé (droit person.statistics) : échantillon pris sans classement")
+            return {"comptage_refuse": True, "personnes_comptees": 0}
         if i % 100 == 0:
             log(f"  {i}/{len(nommees)} personnes comptées")
     comptes.sort(reverse=True)
@@ -281,6 +291,7 @@ def e_personnes_detail():
         if etiquette == "P1":
             PHOTOS_P1.extend(photos)
         par_dossier: dict = {}
+        jours_par_dossier: dict = {}
         precision = Counter()
         ecart_1j = ecart_7j = comparables = mois_faux = mois_comparables = sans_chemin = 0
         annees = set()
@@ -294,6 +305,8 @@ def e_personnes_detail():
                 continue
             dossier = str(PurePosixPath(chemin).parent)
             par_dossier[dossier] = par_dossier.get(dossier, 0) + 1
+            if d:
+                jours_par_dossier.setdefault(dossier, []).append(d)
             p, dd = date_du_dossier(dossier)
             precision[p or "aucune date"] += 1
             if d and p == "jour":
@@ -305,8 +318,13 @@ def e_personnes_detail():
                 mois_comparables += 1
                 mois_faux += (d.year, d.month) != (dd.year, dd.month)
         evenements = [n for dossier, n in par_dossier.items() if date_du_dossier(dossier)[0] in ("jour", "mois")]
+        durees = [(max(j) - min(j)).days + 1 for j in jours_par_dossier.values()]
         lignes.append({
             "personne": etiquette,
+            "duree_dossier_jours_mediane": med(durees),
+            "dossiers_de_3_jours_ou_moins": sum(1 for x in durees if x <= 3),
+            "dossiers_de_4_a_30_jours": sum(1 for x in durees if 4 <= x <= 30),
+            "dossiers_de_plus_de_30_jours": sum(1 for x in durees if x > 30),
             "photos_annoncees": annonce,
             "photos_lues": len(photos),
             "plafonnee": len(photos) >= MAX_PHOTOS,
@@ -394,7 +412,9 @@ def rapport_md() -> str:
         ["Masquées", r["masquees"]], ["Nommées avec date de naissance", r["nommees_avec_naissance"]],
         ["Nommées au format « Prénom NOM »", r["nommees_format_prenom_NOM"]],
         ["Nommées d'un seul mot", r["nommees_un_seul_mot"]]])])
-    bloc("volumes", "Photos par personne nommée", lambda r: [tableau(["Mesure", "Valeur"], [
+    bloc("volumes", "Photos par personne nommée", lambda r: [
+        "- Comptage refusé : il manque le droit `person.statistics` à la clé. L'échantillon ci-dessous est pris "
+        "à intervalles réguliers, pas parmi les personnes les plus photographiées."] if r.get("comptage_refuse") else [tableau(["Mesure", "Valeur"], [
         ["Personnes comptées", r["personnes_comptees"]], ["Maximum", r["photos_max"]], ["Médiane", r["photos_mediane"]],
         ["Plus de 1 000 photos", r["plus_de_1000_photos"]], ["De 100 à 1 000", r["de_100_a_1000"]],
         ["De 10 à 99", r["de_10_a_99"]], ["Moins de 10", r["moins_de_10"]]])])
@@ -412,6 +432,10 @@ def rapport_md() -> str:
                 [[p["personne"], f"{p['photos_lues']}{' (plafond)' if p['plafonnee'] else ''}", p["videos"], p["secondes_lecture"],
                   (f"{p['premiere_annee']}–{p['derniere_annee']} ({p['annees_couvertes']})" if p['annees_couvertes'] else "—"), p["dossiers_distincts"],
                   p["evenements_dates"], p["photos_par_evenement_mediane"], p["photos_par_evenement_max"]] for p in r["personnes"]]),
+        "", "### Un dossier est-il un évènement ? (étendue des dates des photos de la personne dans chaque dossier)", "",
+        tableau(["Pers.", "Dossiers", "Étendue médiane (j)", "3 jours ou moins", "4 à 30 jours", "Plus de 30 jours"],
+                [[p["personne"], p["dossiers_distincts"], p["duree_dossier_jours_mediane"], p["dossiers_de_3_jours_ou_moins"],
+                  p["dossiers_de_4_a_30_jours"], p["dossiers_de_plus_de_30_jours"]] for p in r["personnes"]]),
         "", "### Date du dossier contre date de la photo", "",
         tableau(["Pers.", "Dossier au jour", "Écart > 1 j", "Écart > 7 j", "Dossier au mois", "Mois différent",
                  "Dossier à l'année", "Sans date", "Sans chemin"],

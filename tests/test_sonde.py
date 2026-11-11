@@ -71,6 +71,8 @@ class FauxImmich(BaseHTTPRequestHandler):
         if chemin == "/people":
             return self._json({"people": PERSONNES, "hasNextPage": False})
         if chemin.startswith("/people/") and chemin.endswith("/statistics"):
+            if "statistiques" in REFUS:
+                return self._json({"message": "interdit"}, 403)
             return self._json({"assets": len(PHOTOS.get(chemin.split("/")[2], []))})
         if chemin == "/view/folder/unique-paths":
             return self._json(DOSSIERS)
@@ -161,3 +163,22 @@ def test_cle_refusee(sonde, monkeypatch):
     assert s.main() == 0
     r = json.loads((dossier / "rapport-sonde-frise.json").read_text(encoding="utf-8"))["etapes"]
     assert r["cle"]["statut"] == 401 and "personnes" not in r
+
+
+def test_durees_des_dossiers(sonde):
+    s, dossier = sonde
+    s.main()
+    p1 = json.loads((dossier / "rapport-sonde-frise.json").read_text(encoding="utf-8"))["etapes"]["personnes_detail"]["personnes"][0]
+    # Mariage : 15/06 → 30/07 (46 j) ; Noël : 25/12 → 02/01 (9 j) ; Vrac : 1 j
+    assert (p1["dossiers_de_3_jours_ou_moins"], p1["dossiers_de_4_a_30_jours"], p1["dossiers_de_plus_de_30_jours"]) == (1, 1, 1)
+
+
+def test_sans_droit_de_comptage_l_echantillon_est_quand_meme_etudie(sonde):
+    s, dossier = sonde
+    REFUS.add("statistiques")
+    assert s.main() == 0
+    r = json.loads((dossier / "rapport-sonde-frise.json").read_text(encoding="utf-8"))["etapes"]
+    assert r["volumes"]["ok"] and r["volumes"]["comptage_refuse"] is True
+    assert len(r["personnes_detail"]["personnes"]) == 3
+    assert r["vignettes"]["ok"] and r["visages"]["ok"]
+    assert "person.statistics" in (dossier / "rapport-sonde-frise.md").read_text(encoding="utf-8")
