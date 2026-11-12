@@ -102,6 +102,24 @@ Cache des vignettes sur disque, borné, effaçable. Après la migration, les ide
 
 Tests : faux Immich et fausse liste de carnet (personnes inventées) ; un test prouve qu'aucune écriture ne part vers Immich ; tests d'écran sur PC et iPhone pour le chemin, une étape ouverte, « Raconter » ; un test du découpage (âges, album de plus de 30 jours, photo avant la naissance).
 
+## Décisions prises après le conseil (12/11/2026)
+
+Avis complet : `conseil.md`. Ce qui change par rapport au texte ci-dessus :
+
+- **Une étape = un groupe de photos de la personne, proches en dates.** Si le groupe tient dans un album, il en prend le nom ; sinon il porte sa date. « Étape » et « journée sans album » sont le même objet, grand ou petit. Le découpage des albums de plus de 30 jours disparaît (il n'a plus d'objet). Sillage n'attend pas la fin de la migration.
+- **Personnes : carnet d'abord, Immich en secours.** La liste d'ouverture est celle des contacts de carnet ; si carnet ne répond pas, les personnes nommées d'Immich qui ont une date de naissance. Une recherche ouvre aussi une personne d'Immich hors carnet. La date de naissance d'Immich fait foi.
+- **Photo phare** : le plus grand visage de la personne dans le groupe, puis le choix à la main. Pas de notation fine en V1.
+- **« Raconter » reste dans la V1**, sobre, livré juste après le chemin et avant l'animation du trait, avec une relecture (liste de ce qui sera montré, « retirer cette photo »).
+- **Trois gestes de correction**, gardés dans Sillage : « ce n'est pas elle », « retirer cette photo », « masquer cette étape ». Titre d'étape modifiable.
+- **Scans** : ceux qui ont reçu une date entrent dans le chemin, marqués « vers … » ; les non datés restent à part, avec un compteur et un lien. « À vérifier » ne propose pas de corriger une date d'office.
+- **Date de fin** pour une personne décédée.
+- **Réglages par photo** rattachés à l'empreinte du fichier, pas à l'identifiant (qui change à la migration).
+- **Images** servies seulement derrière la session ; ce qui est archivé, masqué ou verrouillé dans Immich n'est pas montré.
+- **La liste d'ouverture** n'annonce pas de nombre d'étapes par personne.
+- **Refusé pour la V1** : lien partageable, adresse pour les autres applis, sillages croisés, « ce jour-là ».
+- **Critère du mois d'usage** : montré à quelqu'un au moins trois fois ; le chemin de cinq personnes relu sans erreur visible de personne ni de date.
+- **Prochaine étape : la sonde**, par le navigateur, en lecture seule, sur cinq personnes choisies par l'utilisateur, quand la migration est calme. Le plan (section 6) est réordonné après elle : le chemin d'une personne d'abord, carnet ensuite.
+
 ## Questions ouvertes pour le conseil
 
 1. **Faut-il commencer avant la fin de la migration ?** Aujourd'hui une partie seulement des dossiers est devenue des albums ; le reste est encore en bibliothèque externe, sans album. Sillage serait à moitié vide pendant quelques semaines.
