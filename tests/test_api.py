@@ -449,3 +449,42 @@ def test_regroupements_meme_nom_et_scans_par_annee(monde, c):
     assert [(e["nom"], e["fois"]) for e in etapes(r) if e["debut"] == "2021-01-08"] == [("Apéros du vendredi", 3)]
     r = marque(c, sorte="masquee", poser=reunie["phare"])
     assert [e["masquee"] for e in etapes(r) if e["debut"] == "2021-01-08"] == [True]
+
+
+def test_vignettes_gardees_sur_disque(monde, c, tmp_path):
+    """0.10 : une vignette lue une fois dans Immich est servie du disque ensuite."""
+    _, faux = monde
+    c.get(f"/api/chemin/{CAMILLE}")
+    p = ident("bapteme1")
+    lectures = lambda: sum(1 for m, ch in faux.demandes if ch == f"/assets/{p}/thumbnail")
+    assert c.get(f"/api/vignette/{p}").status_code == 200 and lectures() == 1
+    assert c.get(f"/api/vignette/{p}").content == c.get(f"/api/vignette/{p}").content and lectures() == 1
+    assert c.get(f"/api/vignette/{p}?grande=true").status_code == 200 and lectures() == 2     # autre taille, autre fichier
+    assert len(list((tmp_path / "vignettes").iterdir())) == 2
+    assert c.get("/api/services").json()["cache"]["fichiers"] == 2
+    # La limite est tenue : au-delà, les moins récemment servies partent
+    from app.cache import Cache
+    petit = Cache(tmp_path / "petit", 1)
+    for i in range(30):
+        petit.garder(f"{ident(str(i))}-preview", b"x" * 60_000, "image/jpeg")
+    petit.elaguer()
+    assert petit.place()["mo"] <= 1
+
+
+def test_video_lue_par_morceaux(monde, c):
+    """0.10 : les vidéos du chemin se lisent, l'en-tête Range est transmis à Immich ; jamais une vidéo inconnue."""
+    c.get(f"/api/chemin/{CAMILLE}")
+    v = ident("bapteme3")
+    r = c.get(f"/api/video/{v}")
+    assert r.status_code == 200 and r.headers["content-type"] == "video/mp4" and len(r.content) == 1000
+    r = c.get(f"/api/video/{v}", headers={"Range": "bytes=10-19"})
+    assert r.status_code == 206 and r.content == bytes(range(10, 20)) and r.headers["content-range"] == "bytes 10-19/1000"
+    assert c.get(f"/api/video/{ident('inconnue')}").status_code == 404
+
+
+def test_noms_d_albums_nettoyes():
+    """0.10 : l'année en tête d'un album part ; un lot de numérisation n'est pas un nom d'étape."""
+    from app.chemin import nom_d_album
+    assert nom_d_album("2007 - Soirée d'été") == "Soirée d'été"
+    assert nom_d_album("1998 Numérisation de la famille") == "" and nom_d_album("Scans de grand-mère") == ""
+    assert nom_d_album("50 ans de mariage") == "50 ans de mariage" and nom_d_album("Apéro 2021") == "Apéro 2021"

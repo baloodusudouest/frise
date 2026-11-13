@@ -82,6 +82,15 @@ class FauxImmich:
         if chemin == "/albums":
             nom = self.albums.get(demande.url.params.get("assetId"))
             return httpx.Response(200, json=[{"albumName": nom}] if nom else [])
+        if chemin.endswith("/video/playback"):           # 0.10 : une « vidéo » de 1 000 octets, lue par morceaux
+            corps = bytes(range(250)) * 4
+            plage = demande.headers.get("range", "")
+            if plage.startswith("bytes="):
+                debut, _, fin = plage[6:].partition("-")
+                debut, fin = int(debut), int(fin or len(corps) - 1)
+                return httpx.Response(206, content=corps[debut:fin + 1], headers={
+                    "content-type": "video/mp4", "accept-ranges": "bytes", "content-range": f"bytes {debut}-{fin}/{len(corps)}"})
+            return httpx.Response(200, content=corps, headers={"content-type": "video/mp4", "accept-ranges": "bytes"})
         if chemin.endswith("/thumbnail"):
             return httpx.Response(200, content=IMAGE, headers={"content-type": "image/png"})
         return httpx.Response(404, json={"message": "inconnu"})

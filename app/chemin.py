@@ -73,9 +73,23 @@ def nom_du_dossier(photo: dict, muets: tuple[str, ...] = ()) -> str:
     brut = morceaux[-2].strip()
     nom = sans_date_en_tete(brut)
     sourds = {_plat(m) for m in MUETS + tuple(muets)}
-    if re.fullmatch(r"\d{3}[A-Za-z_]{3,8}", brut) or _plat(brut) in sourds or _plat(nom) in sourds:   # « 100APPLE », « DCIM »
+    if re.fullmatch(r"\d{3}[A-Za-z_]{3,8}", brut) or _plat(brut) in sourds or _plat(nom) in sourds or _LOT.search(_plat(nom)):   # « 100APPLE », « DCIM », lot de scans
         return ""
     return nom if re.search(r"[^\W\d_]{3}", nom) else ""
+
+
+# 0.10 : un nom de lot de numérisation dit comment la photo est arrivée, pas ce qu'elle montre
+_LOT = re.compile(r"\b(numerisation|numerise(?:e|es|s)?|scans?|scannee?s?)\b")
+
+
+def nom_d_album(nom: str, muets: tuple[str, ...] = ()) -> str:
+    """0.10 : le nom d'un album comme nom d'étape, sans l'année en tête (« 2007 - Soirée » → « Soirée ») ;
+    vide pour un lot de numérisation (« 1998 Numérisation … ») ou un nom qui ne dit rien."""
+    court = sans_date_en_tete(nom or "")
+    sourds = {_plat(m) for m in MUETS + tuple(muets)}
+    if _LOT.search(_plat(court)) or _plat(court) in sourds:
+        return ""
+    return court if re.search(r"[^\W\d_]{3}", court) else ""
 
 
 def _taille_du_visage(photo: dict, personne: str) -> float:
@@ -205,7 +219,8 @@ def calculer(personne: dict, photos: Iterable[dict], noms_d_albums: Callable[[li
     albums = noms_d_albums([i for e in etapes if not e["titre"] for i in temoins[id(e)]])
 
     for e in etapes:
-        e["propose"] = majuscule(_plus_frequent([albums.get(i, "") for i in temoins[id(e)]]) or nom_du_dossier(e["phare"], muets))
+        e["propose"] = majuscule(_plus_frequent([nom_d_album(albums.get(i, ""), muets) for i in temoins[id(e)]])
+                                 or nom_du_dossier(e["phare"], muets))
     etapes = regrouper(etapes, personne["id"])
 
     chapitres: list[dict] = []

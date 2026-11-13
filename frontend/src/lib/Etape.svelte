@@ -6,7 +6,7 @@
   import Play from '@lucide/svelte/icons/play'
   import Pencil from '@lucide/svelte/icons/pencil'
   import Star from '@lucide/svelte/icons/star'
-  import { ageDit, periode } from '$lib/dates.js'
+  import { ageDit, periode, quandDit, foisDit } from '$lib/dates.js'
 
   let { etape, immich = '', portImmich = 0, onferme, oncorrige } = $props()
   // Immich dans le navigateur : l'adresse réglée, sinon le même hôte que Sillage sur le port d'Immich (en http).
@@ -28,7 +28,7 @@
   let boite
   let depart = 0
 
-  const titre = $derived(etape.nom || periode(etape.debut, etape.fin))
+  const titre = $derived(etape.nom || quandDit(etape))
   const aller = (pas) => { grande = (grande + pas + etape.photos.length) % etape.photos.length }
 
   function touche(e) {
@@ -45,7 +45,7 @@
   <header>
     <div class="min-w-0">
       <h2 class={etape.nom ? 'plume text-[2.4rem] text-balance' : 'text-xl font-semibold text-balance'}>{titre}</h2>
-      <p class="text-sm text-muted-foreground">{etape.nom ? periode(etape.debut, etape.fin) + ' · ' : ''}{ageDit(etape.age)}{etape.age != null ? ' · ' : ''}{etape.photos.length} photo{etape.photos.length > 1 ? 's' : ''}</p>
+      <p class="text-sm text-muted-foreground">{etape.nom ? quandDit(etape) + foisDit(etape) + ' · ' : ''}{ageDit(etape.age)}{etape.age != null ? ' · ' : ''}{etape.photos.length} photo{etape.photos.length > 1 ? 's' : ''}</p>
     </div>
     <div class="flex flex-none gap-2">
       <button type="button" class="rond" aria-label="Corriger l'étape" aria-pressed={corrige} onclick={ouvrirCorrection}><Pencil class="size-5" aria-hidden="true" /></button>
@@ -87,7 +87,14 @@
     <div class="plein" role="group" aria-label={'Photo ' + (grande + 1) + ' sur ' + etape.photos.length}
          ontouchstart={(e) => (depart = e.touches[0].clientX)}
          ontouchend={(e) => { const d = e.changedTouches[0].clientX - depart; if (Math.abs(d) > 50) aller(d < 0 ? 1 : -1) }}>
-      {#key p.id}<img src={'/api/vignette/' + p.id + '?grande=true'} alt="" />{/key}
+      {#key p.id}
+        {#if p.video}
+          <!-- 0.10 : la vidéo se lit ici (lue par morceaux dans Immich) -->
+          <video src={'/api/video/' + p.id} poster={'/api/vignette/' + p.id + '?grande=true'} controls playsinline preload="metadata"></video>
+        {:else}
+          <img src={'/api/vignette/' + p.id + '?grande=true'} alt="" />
+        {/if}
+      {/key}
       <button type="button" class="rond fermer" aria-label="Fermer la photo" onclick={() => (grande = null)}><X class="size-5" aria-hidden="true" /></button>
       {#if etape.photos.length > 1}
         <button type="button" class="rond avant" aria-label="Photo précédente" onclick={() => aller(-1)}><ChevronLeft class="size-6" aria-hidden="true" /></button>
@@ -101,7 +108,7 @@
           {#if adresseImmich}<a href={adresseImmich + '/photos/' + p.id} target="_blank" rel="noopener">Ouvrir dans Immich</a>{/if}
         </div>
       {/if}
-      <p class="pied">{grande + 1} / {etape.photos.length}{p.video ? ' · vidéo (image seule ici)' : ''}</p>
+      <p class="pied">{grande + 1} / {etape.photos.length}{p.video ? ' · vidéo' : ''}</p>
     </div>
   {/if}
 </dialog>
@@ -120,7 +127,8 @@
   .galerie button:hover img { transform: scale(1.04); }
   .video { position: absolute; right: 0.35rem; bottom: 0.35rem; display: grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 50%; background: rgb(0 0 0 / 0.6); color: #fff; }
   .plein { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; background: #0b0a09; }
-  .plein img { max-width: 100%; max-height: 100dvh; object-fit: contain; }
+  .plein img, .plein video { max-width: 100%; max-height: 100dvh; object-fit: contain; }
+  .plein video { z-index: 1; max-height: calc(100dvh - 9rem); }
   .plein .rond { z-index: 2; position: absolute; background: rgb(0 0 0 / 0.55); color: #fff; border-color: rgb(255 255 255 / 0.2); }
   .fermer { top: calc(0.75rem + env(safe-area-inset-top, 0px)); right: max(0.75rem, env(safe-area-inset-right, 0px)); }
   .avant { left: max(0.75rem, env(safe-area-inset-left, 0px)); top: 50%; margin-top: -1.375rem; }

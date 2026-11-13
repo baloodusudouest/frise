@@ -10,10 +10,13 @@
   let carnet = $state({})
   let erreur = $state('')
   let cherche = $state('')
+  let aVerifier = $state(false)   // 0.10 : la tuile « À vérifier » filtre la liste
 
   const plat = (t) => t.toLowerCase().normalize('NFD').replace(/\p{Mn}/gu, '')
   // Avec carnet : ses fiches à l'ouverture, les proches d'abord ; les autres personnes d'Immich par la recherche.
+  const sansNaissance = $derived((personnes || []).filter((p) => !p.naissance && (!parCarnet || p.carnet)))
   const montrees = $derived.by(() => {
+    if (aVerifier) return sansNaissance
     const mot = plat(cherche.trim())
     const liste = (personnes || []).filter((p) => (mot ? plat(p.nom).includes(mot) : !parCarnet || p.carnet))
     return parCarnet && !mot ? [...liste.filter((p) => p.proche), ...liste.filter((p) => !p.proche)] : liste
@@ -50,6 +53,13 @@
   {:else if parCarnet && !cherche.trim()}
     <p class="mb-3 text-sm text-muted-foreground">Les fiches de carnet liées à Immich. Une autre personne d'Immich ? Cherche son nom.</p>
   {/if}
+  {#if sansNaissance.length}
+    <button type="button" class="averifier" aria-pressed={aVerifier} onclick={() => (aVerifier = !aVerifier)}>
+      <span class="etiquette">À vérifier</span>
+      <span><strong>{sansNaissance.length}</strong> personne{sansNaissance.length > 1 ? 's' : ''} sans date de naissance dans Immich</span>
+      <small>{aVerifier ? 'Toucher pour revenir à toute la liste.' : 'Leur chemin est rangé par année au lieu de l\'âge. Ajoute la date sur leur fiche dans Immich.'}</small>
+    </button>
+  {/if}
   <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4" aria-label="Personnes">
     {#each montrees as p (p.id)}
       <li>
@@ -63,3 +73,9 @@
   </ul>
   {#if !montrees.length}<p class="text-sm text-muted-foreground">Personne ne porte ce nom.</p>{/if}
 {/if}
+
+<style>
+  .averifier { display: grid; gap: 0.15rem; width: 100%; margin-bottom: 1rem; padding: 0.9rem 1.1rem; text-align: left; border: 1px solid var(--border); border-left: 4px solid var(--app); border-radius: 1rem; background: var(--card); }
+  .averifier[aria-pressed='true'] { border-color: var(--app); }
+  .averifier small { color: var(--muted-foreground); }
+</style>

@@ -67,6 +67,19 @@ class Immich:
         albums = self._lire("/albums", "la lecture des albums d'une photo", assetId=photo).json()
         return albums[0].get("albumName", "") if albums else ""
 
+    def flux(self, chemin: str, quoi: str, entetes: dict[str, str]) -> httpx.Response:
+        """0.10 : une vidéo, lue par morceaux (l'en-tête Range du navigateur est transmis). À fermer après usage."""
+        try:
+            r = self.client.send(self.client.build_request("GET", chemin, headers=entetes), stream=True)
+        except httpx.HTTPError as exc:
+            raise ErreurImmich(f"Immich injoignable pendant {quoi} ({exc.__class__.__name__}).") from exc
+        if r.status_code >= 400:
+            r.close()
+            if r.status_code in (401, 403):
+                raise ErreurImmich(f"Immich refuse {quoi} : la clé d'API de Sillage n'en a pas le droit ({r.status_code}).")
+            raise ErreurImmich(f"Immich a refusé {quoi} ({r.status_code}).")
+        return r
+
     def image(self, chemin: str, quoi: str, **params) -> tuple[bytes, str]:
         r = self._lire(chemin, quoi, **params)
         return r.content, r.headers.get("content-type", "image/jpeg")

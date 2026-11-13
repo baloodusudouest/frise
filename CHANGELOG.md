@@ -1,5 +1,13 @@
 # Journal des versions
 
+## 0.10.0 — 13/11/2026
+
+- **Noms d'étapes plus propres** (vus sur ta photothèque) : l'année en tête d'un album part (« 2007 - Soirée class » → « Soirée class »), comme pour les dossiers. Un lot de numérisation (« 1998 Numérisation … », « Scans … ») n'est plus pris pour un nom : ses scans datés au mois se réunissent par année.
+- **Les vidéos se lisent** dans la photo ouverte en grand (propriétaire seulement), lues par morceaux dans Immich.
+- **Les vignettes sont gardées sur le disque** de Sillage (`/data/vignettes`, 500 Mo au plus, réglable par `SILLAGE_CACHE_MO`, 0 pour couper) : une vignette déjà vue ne redemande plus Immich, même après un redémarrage. Les moins récemment servies partent en premier.
+- **Tuile « À vérifier »** sur la liste : les personnes sans date de naissance dans Immich (leur chemin est rangé par année au lieu de l'âge), d'un toucher.
+- Tests : 38 du serveur, 21 d'écran.
+
 ## 0.9.0 — 13/11/2026
 
 - **Moins d'étapes, plus parlantes** (vu sur une vraie frise de 333 étapes, dont « Apéro » des dizaines de fois) :

@@ -75,6 +75,30 @@ def test_la_liste_et_la_recherche(page):
     sans_debordement(page)
 
 
+def test_010_tuile_a_verifier(page):
+    """0.10 : les personnes sans date de naissance dans Immich, d'un toucher."""
+    page.goto(page.base + "/#/sillages")
+    page.fill("input[type=search]", "")
+    tuile = page.locator(".averifier")
+    assert "1 personne sans date de naissance" in tuile.inner_text()
+    tuile.click()
+    assert page.locator("ul[aria-label=Personnes] li").all_inner_texts()[0].startswith("Hugo")
+    assert page.locator("ul[aria-label=Personnes] li").count() == 1
+    tuile.click()
+    assert page.locator("ul[aria-label=Personnes] li").count() == 2
+
+
+def test_010_une_video_se_lit(page):
+    page.goto(page.base + "/#/chemin/" + CAMILLE)
+    page.get_by_role("button", name="Noël chez les grands-parents, 6 photos").click()
+    page.get_by_role("button", name="Photo 1 (vidéo)").click()
+    v = page.locator(".plein video")
+    v.wait_for()
+    assert v.get_attribute("src").startswith("/api/video/") and v.get_attribute("controls") is not None
+    page.keyboard.press("Escape")
+    page.keyboard.press("Escape")
+
+
 def test_le_chemin_temps_forts_puis_tout(page):
     page.goto(page.base + "/#/chemin/" + CAMILLE)
     page.wait_for_selector(".etape")
@@ -175,7 +199,7 @@ def test_connexion_et_reglages(page):
     page.goto(page.base + "/#/connexion")
     page.get_by_text("Répond, version 3.4.1. 2 personnes nommées.").wait_for()
     page.goto(page.base + "/#/reglages")
-    page.get_by_text("Sillage 0.9.0").wait_for()
+    page.get_by_text("Sillage 0.10.0").wait_for()
     sans_debordement(page)
 
 

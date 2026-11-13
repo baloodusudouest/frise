@@ -18,10 +18,12 @@ from pathlib import Path
 
 import httpx
 from fastapi import Body, FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
+from starlette.background import BackgroundTask
 
 from . import __version__, chemin as calcul, recit as recits
 from .base import SORTES, Base
+from .cache import Cache
 from .auth import COMMUN, DUREE, Sessions
 from .config import APPLI, Config, charger
 from .immich import ErreurImmich, Immich
@@ -53,7 +55,7 @@ async def cycle(app: FastAPI):
     ETAT.setdefault("immich", Immich(cfg.immich_url, cfg.immich_cle))
     ETAT.update(cfg=cfg, sessions=Sessions(APPLI, cfg.password, _lire_generation(cfg)),
                 personnes=None, lues={}, albums={}, connues={}, derniere_lecture=None, toutes=None, invites={},
-                base=Base(cfg.data / "sillage.db"))
+                base=Base(cfg.data / "sillage.db"), cache=Cache(cfg.data / "vignettes", cfg.cache_mo))
     yield
     ETAT["base"].fermer()
 
@@ -432,10 +434,21 @@ def vignette_invite(jeton: str, photo: str):
     """Seules les photos phares du chemin de l'invitation sont servies."""
     if not UUID.match(photo) or photo not in _invitation(jeton)["_phares"]:
         raise HTTPException(404, "Photo inconnue de cette invitation.")
-    return _image(*ETAT["immich"].image(f"/assets/{photo}/thumbnail", "la lecture d'une image", size="preview"))
+    return _vignette(photo, "preview")
 
 
 # ================================================================ images (derrière la session)
+
+def _vignette(photo: str, taille: str) -> Response:
+    """0.10 : la vignette d'une photo, gardée sur disque après la première lecture dans Immich."""
+    cle = f"{photo}-{taille}"
+    garde_ = ETAT["cache"].lire(cle)
+    if garde_:
+        return _image(*garde_)
+    contenu, sorte = ETAT["immich"].image(f"/assets/{photo}/thumbnail", "la lecture d'une image", size=taille)
+    ETAT["cache"].garder(cle, contenu, sorte)
+    return _image(contenu, sorte)
+
 
 def _image(contenu: bytes, sorte: str) -> Response:
     return Response(contenu, media_type=sorte, headers={"Cache-Control": "private, max-age=86400"})
@@ -453,8 +466,18 @@ def vignette(photo: str, grande: bool = False):
     """Seules les photos d'un chemin déjà calculé sont servies : Sillage n'ouvre pas tout Immich."""
     if not UUID.match(photo) or photo not in ETAT["connues"]:
         raise HTTPException(404, "Photo inconnue de Sillage.")
-    return _image(*ETAT["immich"].image(f"/assets/{photo}/thumbnail", "la lecture d'une image",
-                                         size="preview" if grande else "thumbnail"))
+    return _vignette(photo, "preview" if grande else "thumbnail")
+
+
+@app.get("/api/video/{photo}")
+def video(photo: str, request: Request):
+    """0.10 : la lecture d'une vidéo du chemin, pour le propriétaire (pas pour les invités)."""
+    if not UUID.match(photo) or photo not in ETAT["connues"]:
+        raise HTTPException(404, "Vidéo inconnue de Sillage.")
+    entetes = {"range": request.headers["range"]} if request.headers.get("range") else {}
+    r = ETAT["immich"].flux(f"/assets/{photo}/video/playback", "la lecture d'une vidéo", entetes)
+    garder = {k: r.headers[k] for k in ("content-type", "content-length", "content-range", "accept-ranges") if k in r.headers}
+    return StreamingResponse(r.iter_bytes(65536), status_code=r.status_code, headers=garder, background=BackgroundTask(r.close))
 
 
 # ================================================================ services
@@ -468,7 +491,8 @@ def services():
         version, erreur, nombre = "", str(exc), 0
     return {"immich": {"repond": not erreur, "version": version, "erreur": erreur, "personnes": nombre,
                        "lecture_seule": True},
-            "carnet": ETAT.get("carnet", {"regle": bool(ETAT["cfg"].carnet_jeton), "erreur": "", "fiches": 0})}
+            "carnet": ETAT.get("carnet", {"regle": bool(ETAT["cfg"].carnet_jeton), "erreur": "", "fiches": 0}),
+            "cache": ETAT["cache"].place()}
 
 
 # ================================================================ interface

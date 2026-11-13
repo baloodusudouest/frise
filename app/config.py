@@ -22,6 +22,7 @@ class Config:
     carnet_jeton: str = ""           # le même jeton que CARNET_JETON_SILLAGE côté carnet ; vide : personnes d'Immich
     jeton_ha: str = ""               # 0.5 : jeton de Home Assistant pour /ha/sejour ; vide : adresse fermée
     muets: tuple[str, ...] = ()      # noms de dossier qui ne disent rien, en plus de la liste par défaut
+    cache_mo: int = 500              # 0.10 : place des vignettes gardées sur disque (Mo) ; 0 : pas de cache
     attente_connexion: bool = True   # délai anti-essais ; coupé dans les tests
 
 
@@ -44,5 +45,6 @@ def charger() -> Config:
         carnet_jeton=os.environ.get("SILLAGE_CARNET_JETON", "").strip(),
         jeton_ha=os.environ.get("SILLAGE_JETON_HA", "").strip(),
         muets=tuple(m.strip() for m in os.environ.get("SILLAGE_DOSSIERS_MUETS", "").split(",") if m.strip()),
+        cache_mo=int(os.environ.get("SILLAGE_CACHE_MO") or 500) if (os.environ.get("SILLAGE_CACHE_MO") or "500").strip().isdigit() else 500,
         mots=tuple(m.strip().lower() for m in os.environ.get("SILLAGE_MOTS", "").split(",") if m.strip()),
     )
