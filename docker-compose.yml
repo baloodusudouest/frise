@@ -1,0 +1,18 @@
+# Service sillage à placer dans la stack homelab.yml (Portainer).
+# Les variables viennent des « Environment variables » de la stack (voir .env.example).
+services:
+  sillage:
+    image: ghcr.io/baloodusudouest/sillage:${SILLAGE_VERSION:-latest}
+    container_name: sillage
+    restart: unless-stopped
+    ports:
+      - "${PORT_SILLAGE:-8093}:8093"                 # réseau local et Tailscale uniquement
+    environment:
+      - TZ=Europe/Paris
+      - SILLAGE_PASSWORD=${APPS_PASSWORD}            # mot de passe commun à toutes les applis
+      - SILLAGE_IMMICH_URL=http://immich_server:2283 # Immich vu depuis la stack
+      - SILLAGE_IMMICH_CLE=${SILLAGE_IMMICH_CLE}     # clé d'API Immich, en lecture seule
+      - SILLAGE_IMMICH_ADRESSE=${SILLAGE_IMMICH_ADRESSE:-}   # adresse d'Immich dans le navigateur (lien « Ouvrir dans Immich »)
+      - SILLAGE_MOTS=${SILLAGE_MOTS:-}               # mots des temps forts, séparés par des virgules ; vide : la liste par défaut
+    volumes:
+      - ${SILLAGE_DATA_DIR}:/data                    # un seul petit fichier (déconnexion)

@@ -2,16 +2,25 @@
 
 Fichier à lire en premier dans une nouvelle session, et à mettre à jour à chaque fin de session, dans le même commit que le code.
 
-## État (12/11/2026)
+## État (13/11/2026)
 
-- Le projet s'appelle **Sillage** (dépôt renommé). Couleur : miel doré. Une icône est à faire avec le squelette.
-- Grill fini, **dossier écrit** ([`docs/dossier.md`](docs/dossier.md)), **conseil passé** ([`docs/conseil.md`](docs/conseil.md)), décisions d'après conseil en fin de dossier.
-- **Rien n'est codé**, sauf la sonde (`sonde/`), qui ne mesure que les dossiers.
-- La migration vers le stockage d'Immich est en cours (appli Transhumance) ; Sillage ne l'attend plus.
+- **Version 0.1.0 codée et publiée** (`ghcr.io/baloodusudouest/sillage:latest`, port 8093) : personnes d'Immich, chemin d'une personne, étape ouverte, photo en grand. Lecture seule d'Immich. 16 tests du serveur, 8 d'écran (PC et iPhone), 3 de l'ancienne sonde.
+- **Jamais lancée sur la vraie photothèque.** C'est elle qui sert de sonde : à regarder sur cinq personnes.
+- Dossier ([`docs/dossier.md`](docs/dossier.md)), conseil ([`docs/conseil.md`](docs/conseil.md)), décisions d'après conseil en fin de dossier.
 
-## Prochaine étape
+## À vérifier sur la vraie installation
 
-**La sonde, par le navigateur, en lecture seule**, sur cinq personnes choisies par l'utilisateur, quand aucun lot de migration ne tourne : photos par décennie d'âge, part en album, part de scans non datés, photos sans date d'origine, personnes en double probable. Rapport sans nom de personne. Puis révision du plan, puis le squelette depuis le socle.
+- La clé d'API (droits `person.read`, `asset.read`, `asset.view`, `album.read`) suffit-elle ? Un refus s'affiche dans « Connexion ».
+- La recherche rend-elle bien les visages (`withPeople`) ? Sinon la photo phare est la première image du groupe.
+- Le temps de lecture d'une personne très photographiée, et celui des noms d'albums (une lecture par étape de plus d'une photo, huit de front, gardées dix minutes).
+- L'écart de deux jours donne-t-il des étapes qui ressemblent à des évènements ?
+
+## Pas encore fait (dans l'ordre du plan)
+
+1. Personnes venues de carnet (adresse à jeton dans carnet), lien dans la fiche.
+2. Corrections gardées dans Sillage : « ce n'est pas elle », « retirer cette photo », « masquer cette étape », titre modifiable, choix de la photo phare ; base SQLite, réglages rattachés à l'empreinte.
+3. « Raconter », puis l'animation du trait.
+4. Scans datés « vers … », date de fin, tuile « À vérifier », cache des vignettes sur disque, lecture des vidéos.
 
 ## Décisions à ne pas rouvrir sans raison
 

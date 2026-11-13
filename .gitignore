@@ -5,3 +5,12 @@ rapport-sonde-frise.*
 
 __pycache__/
 .pytest_cache/
+# Jamais de secret ni de donnée personnelle dans le dépôt
+.env
+data/
+
+# Construction
+__pycache__/
+.pytest_cache/
+frontend/node_modules/
+app/static/

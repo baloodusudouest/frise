@@ -1,10 +1,35 @@
-# Frise
+# Sillage
 
-Frise de vie d'une personne à partir d'Immich : ses photos, rangées par évènement et par date.
+Le chemin de vie d'une personne, lu dans Immich : ses photos rangées en étapes, les étapes en chapitres d'âge. Ancien nom : Frise.
 
-**État : étape 0, la sonde.** L'appli n'est pas encore conçue. Avant d'écrire son dossier, une sonde lit Immich pour mesurer ce dont la conception dépend. Voir [`REPRISE.md`](REPRISE.md).
+**État : 0.1.0, première version, en lecture seule.** Voir [`REPRISE.md`](REPRISE.md) et [`docs/dossier.md`](docs/dossier.md).
 
-## La sonde d'Immich
+## Ce que fait la 0.1.0
+
+- La liste des personnes nommées d'Immich, avec une recherche.
+- Le chemin d'une personne : une étape réunit ses photos prises à moins de deux jours les unes des autres ; elle porte le nom de l'album de sa photo phare, sinon celui de son dossier, sinon sa date. Chapitres par décennie d'âge (par année sans date de naissance).
+- « Temps forts » (étapes dont le nom contient un mot de la liste) ou « Tout ».
+- Une étape ouverte : sa galerie, chaque photo en grand, un lien vers Immich.
+- Les images passent par Sillage, derrière le mot de passe. Ce qui est à la corbeille, archivé ou verrouillé dans Immich n'est pas montré.
+
+Sillage n'écrit rien dans Immich : un test le vérifie.
+
+## Installer
+
+Image : `ghcr.io/baloodusudouest/sillage:latest`, port 8093. Service et variables : [`docker-compose.yml`](docker-compose.yml) et [`.env.example`](.env.example).
+
+Clé d'API à créer dans Immich pour Sillage, avec ces seuls droits : `person.read`, `asset.read`, `asset.view`, `album.read`.
+
+## Tests
+
+```
+pip install -r requirements-dev.txt && python -m pytest tests --ignore=tests/interface
+cd frontend && npm ci && npx vite build --outDir ../app/static && cd .. && python -m pytest tests/interface
+```
+
+Toutes les personnes et photos des tests sont inventées.
+
+## La sonde d'Immich (étape 0, novembre 2026)
 
 Image : `ghcr.io/baloodusudouest/frise:sonde`. Le conteneur tourne une fois, écrit un rapport, puis s'arrête. Il ne modifie rien dans Immich.
 
