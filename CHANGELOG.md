@@ -1,5 +1,10 @@
 # Journal des versions
 
+## 0.8.0 — 13/11/2026
+
+- **Page d'invité : la photo phare s'ouvre en grand** d'un clic ou d'un toucher, avec le nom et la date de l'étape ; fermeture par la croix, un clic à côté ou Échap. Seules les photos phares, comme avant : les autres photos de l'étape restent réservées au propriétaire.
+- Côté Home Assistant (template `chambre_photo` v2.2) : un lien « Ouvrir en grand ↗ » sous la carte ouvre la page d'invité dans un nouvel onglet.
+
 ## 0.7.0 — 13/11/2026
 
 - **Plusieurs invités : une seule frise en couleurs.** Les moments où ils sont ensemble (miel), et pour chacun, dans sa couleur, ses photos seul ou avec les hôtes de la maison. Une photo où il y a quelqu'un d'autre n'y entre pas. Par décennies du calendrier ; une légende (● Camille ● Hugo ● Ensemble) et le prénom sur chaque carte. Plus d'onglets « chacun son chemin ».

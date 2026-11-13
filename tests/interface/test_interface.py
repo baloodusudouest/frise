@@ -175,7 +175,7 @@ def test_connexion_et_reglages(page):
     page.goto(page.base + "/#/connexion")
     page.get_by_text("Répond, version 3.4.1. 2 personnes nommées.").wait_for()
     page.goto(page.base + "/#/reglages")
-    page.get_by_text("Sillage 0.7.0").wait_for()
+    page.get_by_text("Sillage 0.8.0").wait_for()
     sans_debordement(page)
 
 
@@ -204,6 +204,11 @@ def test_050_l_invite_voit_son_chemin_sans_mot_de_passe(page):
     assert page.locator(".etape").count() == 11
     for src in page.locator(".etape img").evaluate_all("els => els.slice(0, 3).map(e => e.src)"):
         assert page.request.get(src).status == 200                                       # les photos phares passent par le jeton
+    page.locator(".etape .ouvrir").first.click()                                        # 0.8 : la photo phare en grand
+    page.get_by_role("dialog").wait_for()
+    assert page.locator(".grand img").evaluate("i => i.getBoundingClientRect().width") > page.locator(".etape img").first.evaluate("i => i.getBoundingClientRect().width") * 0.9
+    page.keyboard.press("Escape")
+    assert page.get_by_role("dialog").count() == 0
     sans_debordement(page)
 
 

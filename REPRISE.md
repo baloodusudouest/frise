@@ -4,6 +4,7 @@ Fichier à lire en premier dans une nouvelle session, et à mettre à jour à ch
 
 ## État (13/11/2026)
 
+- **0.8.0** : visionneuse de la photo phare dans `Invite.svelte` (état `grande`, dialogue `.grand`). Décision de l'utilisateur : la photo en grand est permise aux invités, la photo phare seulement.
 - **0.7.0** : `_ensemble` dans `app/main.py` (commun par `photos_ensemble`, chacun par `photos_de` filtré sur les personnes de la photo ⊆ {invité} ∪ hôtes ; étapes marquées `qui`, clés préfixées). Table `reglages` (clé « hotes »), `GET/PUT /api/reglages`. Le filtre suppose que la recherche d'Immich rend **toutes** les personnes reconnues sur chaque photo (`withPeople`) : à vérifier, sinon des photos avec d'autres gens passeraient. Un visage reconnu mais sans nom compte comme « quelqu'un d'autre ».
 - **0.6.0** : onglet « Chambres » (`pages/Chambres.svelte`, `GET /api/chambres`, `Base.invitations`), aperçu par `Invite.svelte` en mode `apercu`. Colonne `du` ajoutée à la table `invites` au démarrage (bases de la 0.5). La date d'arrivée vient de `sejour_debut` (package HA v1.3).
 - **0.5.0** : vue des invités (`/invite/<jeton>`, `pages/Invite.svelte`), préparée par Home Assistant (`POST /ha/sejour`, jeton `SILLAGE_JETON_HA`, table `invites` dans `app/base.py`). Chemin commun par `immich.photos_ensemble` (plusieurs `personIds`) et `chemin.calculer(..., decennies=True)`. Package HA : `config/packages/chambres/sillage_invites.yaml` du master doc. Thème toujours sombre. **Rien de cela n'a tourné contre le vrai Immich ni le vrai HA.**
@@ -35,7 +36,7 @@ Fichier à lire en premier dans une nouvelle session, et à mettre à jour à ch
 - Lecture seule d'Immich ; réglages dans la base de Sillage, rattachés à l'empreinte des fichiers.
 - Personnes : carnet d'abord, Immich en secours.
 - « Raconter » dans la V1, sobre, avec relecture.
-- Vue des invités (0.5.0) : jeton par séjour, rien que le chemin et les photos phares ; le propriétaire garde seul corrections, Raconter et Immich.
+- Vue des invités (0.5.0, 0.8.0) : jeton par séjour, rien que le chemin et les photos phares (ouvrables en grand) ; le propriétaire garde seul corrections, Raconter et Immich.
 - Hors V1 : page imprimable, arbre généalogique, vidéo, sillages croisés, « ce jour-là ».
 - Technique : celle du dépôt socle.
 

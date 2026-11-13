@@ -11,6 +11,7 @@
   let erreur = $state('')
   let tout = $state(false)
   let rang = $state(0)
+  let grande = $state(null) // 0.8 : l'étape dont la photo phare est ouverte en grand
 
   const chemins = $derived(d ? (d.commun ? [d.commun] : d.chacun) : [])
   const vu = $derived(chemins[Math.min(rang, chemins.length - 1)] || null)
@@ -54,7 +55,7 @@
   })
 </script>
 
-<svelte:window onscroll={mesurer} onresize={mesurer} />
+<svelte:window onscroll={mesurer} onresize={mesurer} onkeydown={(ev) => { if (ev.key === 'Escape') grande = null }} />
 
 <svelte:element this={apercu ? 'div' : 'main'} class={apercu ? '' : 'mx-auto max-w-5xl px-[max(1rem,env(safe-area-inset-left))] pt-[calc(1.25rem+env(safe-area-inset-top))] pb-[calc(2rem+env(safe-area-inset-bottom))]'}>
   {#if erreur}
@@ -99,7 +100,9 @@
                 <li class="etape {e.cote}" class:petite={e.nombre === 1 && !e.nom} class:colore={e.qui != null} style:--qui={couleur(e.qui)} use:apparait>
                   <span class="point" class:fort={e.temps_fort} aria-hidden="true"></span>
                   <div class="carte">
-                    <img src={`/api/invite/${encodeURIComponent(jeton)}/vignette/${e.phare}`} alt="" loading="lazy" />
+                    <button type="button" class="ouvrir" aria-label={'Voir en grand : ' + (e.nom || periode(e.debut, e.fin))} onclick={() => (grande = e)}>
+                      <img src={`/api/invite/${encodeURIComponent(jeton)}/vignette/${e.phare}`} alt="" loading="lazy" />
+                    </button>
                     <span class="dit">
                       {#if e.qui != null}<span class="qui">{e.qui === 'ensemble' ? 'Ensemble' : prenom(vu.invites[e.qui])}</span>{/if}
                       <strong class:plume={!!e.nom}>{e.nom || periode(e.debut, e.fin)}</strong>
@@ -115,6 +118,17 @@
     {/key}
   {/if}
 </svelte:element>
+
+{#if grande}
+  <div class="grand" role="dialog" aria-modal="true" aria-label={grande.nom || periode(grande.debut, grande.fin)}>
+    <button type="button" class="fond" aria-label="Fermer" onclick={() => (grande = null)}></button>
+    <figure>
+      <img src={`/api/invite/${encodeURIComponent(jeton)}/vignette/${grande.phare}`} alt={grande.nom || ''} />
+      <figcaption><strong class:plume={!!grande.nom}>{grande.nom || periode(grande.debut, grande.fin)}</strong>{#if grande.nom}<small>{periode(grande.debut, grande.fin)}</small>{/if}</figcaption>
+    </figure>
+    <button type="button" class="fermer" aria-label="Fermer" onclick={() => (grande = null)}>✕</button>
+  </div>
+{/if}
 
 <style>
   .chemin { position: relative; --trait: 1.25rem; }
@@ -135,6 +149,9 @@
   .point { border-color: var(--qui, var(--app)); }
   .point.fort { background: var(--qui, var(--app)); border-color: var(--qui, var(--app)); width: 0.95rem; height: 0.95rem; margin-left: -0.475rem; }
   .carte { display: flex; flex-direction: column; width: 100%; max-width: 26rem; overflow: hidden; text-align: left; border: 1px solid var(--border); border-radius: 1.1rem; background: var(--card); transition: border-color 0.2s, transform 0.2s; }
+  .ouvrir { display: block; width: 100%; padding: 0; border: 0; background: none; cursor: zoom-in; }
+  .petite .ouvrir { width: 4rem; flex: none; }
+  .ouvrir img { display: block; }
   .carte img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: var(--secondary); }
   .dit { display: grid; gap: 0.15rem; padding: 0.7rem 0.9rem 0.8rem; min-width: 0; }
   .dit strong { font-weight: 600; text-wrap: balance; }
@@ -173,6 +190,15 @@
   .bascule button { min-height: 2.25rem; font-size: 0.85rem; }
   .colore .carte { border-left: 4px solid var(--qui); }
   .qui { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--qui); }
+  .grand { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: calc(0.75rem + env(safe-area-inset-top)) 0.75rem calc(0.75rem + env(safe-area-inset-bottom)); }
+  .grand .fond { position: absolute; inset: 0; border: 0; background: color-mix(in oklab, black 88%, transparent); cursor: zoom-out; }
+  .grand figure { position: relative; margin: 0; display: grid; gap: 0.5rem; justify-items: center; max-width: 100%; max-height: 100%; pointer-events: none; }
+  .grand figure { width: 100%; }
+  .grand img { width: 100%; height: calc(100dvh - 7rem); object-fit: contain; }
+  .grand figcaption { display: grid; justify-items: center; color: var(--foreground); text-align: center; }
+  .grand figcaption .plume { font-size: 2rem; color: var(--app); }
+  .grand small { color: var(--muted-foreground); }
+  .fermer { position: absolute; top: calc(0.5rem + env(safe-area-inset-top)); right: calc(0.5rem + env(safe-area-inset-right)); width: 2.75rem; height: 2.75rem; border-radius: 50%; border: 1px solid var(--border); background: var(--card); font-size: 1.1rem; }
   .accueil { min-height: 40dvh; display: grid; place-content: center; gap: 0.75rem; text-align: center; padding: 2rem 1rem; }
   .accueil h1 { font-size: 3.4rem; margin: 0; }
   .accueil p { margin: 0; max-width: 34ch; color: var(--muted-foreground); }
