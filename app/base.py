@@ -24,6 +24,7 @@ class Base:
                                                valeur TEXT NOT NULL DEFAULT '', le TEXT NOT NULL,
                                                PRIMARY KEY (personne, empreinte, sorte));
             CREATE TABLE IF NOT EXISTS recits (personne TEXT PRIMARY KEY, texte TEXT NOT NULL, le TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS reglages (cle TEXT PRIMARY KEY, valeur TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS invites (jeton TEXT PRIMARY KEY, chambre TEXT NOT NULL, personnes TEXT NOT NULL,
                                                 expire TEXT NOT NULL, cree_le TEXT NOT NULL);
         """)
@@ -90,6 +91,17 @@ class Base:
             self._c.execute("INSERT INTO invites (jeton, chambre, personnes, expire, cree_le, du) VALUES (?, ?, ?, ?, ?, ?)",
                             (jeton, chambre, corps, expire, maintenant, du))
             return jeton
+
+    def reglage(self, cle: str, defaut=None):
+        """0.7 : un réglage fait dans l'appli (valeur JSON)."""
+        with self._verrou:
+            l = self._c.execute("SELECT valeur FROM reglages WHERE cle = ?", (cle,)).fetchone()
+        return json.loads(l["valeur"]) if l else defaut
+
+    def poser_reglage(self, cle: str, valeur) -> None:
+        with self._verrou, self._c:
+            self._c.execute("INSERT INTO reglages VALUES (?, ?) ON CONFLICT(cle) DO UPDATE SET valeur = excluded.valeur",
+                            (cle, json.dumps(valeur, ensure_ascii=False)))
 
     def invitations(self) -> list[dict]:
         """Les invitations encore valables, par date d'arrivée : {jeton, chambre, personnes, expire, du}."""

@@ -23,6 +23,10 @@
       .filter((c) => c.etapes.length)
   })
   const ageDit = (a) => (a == null ? '' : a === 0 ? 'avant 1 an' : a === 1 ? 'à 1 an' : `à ${a} ans`)
+  // 0.7 : la frise de plusieurs invités, une couleur par invité et le miel pour les moments ensemble
+  const COULEURS = ['#7fb7e6', '#e58fa8', '#8fd1a6', '#c3a6f0']
+  const couleur = (qui) => (qui === 'ensemble' || qui == null ? 'var(--app)' : COULEURS[qui % COULEURS.length])
+  const prenom = (nom) => nom.split(' ')[0]
   const prenoms = (noms) => noms.length < 2 ? noms.join('') : noms.slice(0, -1).join(', ') + ' et ' + noms.at(-1)
 
   // Le trait se remplit à mesure qu'on descend, les étapes apparaissent en entrant dans l'écran.
@@ -63,9 +67,14 @@
       <p>Pas encore de souvenirs ici : les photos du séjour viendront.</p>
     </div>
   {:else}
-    <header class="mb-5">
-      <p class="etiquette">{d.commun ? 'Votre chemin ensemble' : chemins.length > 1 ? 'Vos chemins' : 'Votre chemin'}</p>
-      <h1 class="plume text-[2.8rem] leading-none text-balance">{vu.nom}</h1>
+    <header class="entete">
+      <h1>{d.commun ? 'Votre chemin ensemble' : chemins.length > 1 ? 'Vos chemins' : 'Votre chemin'}</h1>
+      {#if vu.ensemble}
+        <ul class="legende" aria-label="Couleurs">
+          {#each vu.invites as n, i}<li style:--qui={couleur(i)}>{prenom(n)}</li>{/each}
+          <li style:--qui={couleur('ensemble')}>Ensemble</li>
+        </ul>
+      {/if}
     </header>
 
     {#if chemins.length > 1}
@@ -74,7 +83,7 @@
       </div>
     {/if}
     {#if forts > 0 && forts < vu.etapes}
-      <div class="onglets" role="group" aria-label="Ce que le chemin montre">
+      <div class="onglets bascule" role="group" aria-label="Ce que le chemin montre">
         <button type="button" aria-pressed={!tout} onclick={() => (tout = false)}>Temps forts</button>
         <button type="button" aria-pressed={tout} onclick={() => (tout = true)}>Tout</button>
       </div>
@@ -87,11 +96,12 @@
             <h2 class="chapitre"><span>{c.titre}</span></h2>
             <ol>
               {#each c.etapes as e (e.cle)}
-                <li class="etape {e.cote}" class:petite={e.nombre === 1 && !e.nom} use:apparait>
+                <li class="etape {e.cote}" class:petite={e.nombre === 1 && !e.nom} class:colore={e.qui != null} style:--qui={couleur(e.qui)} use:apparait>
                   <span class="point" class:fort={e.temps_fort} aria-hidden="true"></span>
                   <div class="carte">
                     <img src={`/api/invite/${encodeURIComponent(jeton)}/vignette/${e.phare}`} alt="" loading="lazy" />
                     <span class="dit">
+                      {#if e.qui != null}<span class="qui">{e.qui === 'ensemble' ? 'Ensemble' : prenom(vu.invites[e.qui])}</span>{/if}
                       <strong class:plume={!!e.nom}>{e.nom || periode(e.debut, e.fin)}</strong>
                       <small>{e.nom ? periode(e.debut, e.fin) : ''}{e.nom && e.age != null ? ' · ' : ''}{ageDit(e.age)}{e.nombre > 1 ? (e.nom || e.age != null ? ' · ' : '') + e.nombre + ' photos' : ''}</small>
                     </span>
@@ -122,7 +132,8 @@
   .chapitre span { font-size: 1.9rem; font-weight: 300; letter-spacing: -0.035em; line-height: 1; color: var(--app); }
   .etape { position: relative; padding-left: calc(var(--trait) * 2 + 0.25rem); min-width: 0; }
   .point { z-index: 1; position: absolute; left: var(--trait); top: 1.6rem; width: 0.7rem; height: 0.7rem; margin-left: -0.35rem; border-radius: 50%; background: var(--background); border: 2px solid var(--app); }
-  .point.fort { background: var(--app); width: 0.95rem; height: 0.95rem; margin-left: -0.475rem; }
+  .point { border-color: var(--qui, var(--app)); }
+  .point.fort { background: var(--qui, var(--app)); border-color: var(--qui, var(--app)); width: 0.95rem; height: 0.95rem; margin-left: -0.475rem; }
   .carte { display: flex; flex-direction: column; width: 100%; max-width: 26rem; overflow: hidden; text-align: left; border: 1px solid var(--border); border-radius: 1.1rem; background: var(--card); transition: border-color 0.2s, transform 0.2s; }
   .carte img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: var(--secondary); }
   .dit { display: grid; gap: 0.15rem; padding: 0.7rem 0.9rem 0.8rem; min-width: 0; }
@@ -152,6 +163,16 @@
   .onglets { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1.25rem; }
   .onglets button { min-height: 2.75rem; padding: 0 1rem; border-radius: 999px; border: 1px solid var(--border); background: var(--card); font-size: 0.95rem; }
   .onglets button[aria-pressed='true'] { background: var(--app); border-color: var(--app); color: var(--app-contraste); font-weight: 600; }
+  /* 0.7 : une ligne, la légende, la bascule : la frise commence tout de suite (carte de chambre de 300 px) */
+  .entete { display: grid; gap: 0.5rem; margin-bottom: 0.9rem; }
+  .entete h1 { margin: 0; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted-foreground); }
+  .legende { display: flex; flex-wrap: wrap; gap: 0.35rem 1rem; margin: 0; padding: 0; list-style: none; font-size: 0.92rem; }
+  .legende li { display: inline-flex; align-items: center; gap: 0.4rem; }
+  .legende li::before { content: ""; width: 0.75rem; height: 0.75rem; border-radius: 50%; background: var(--qui); }
+  .bascule { margin-bottom: 0.9rem; }
+  .bascule button { min-height: 2.25rem; font-size: 0.85rem; }
+  .colore .carte { border-left: 4px solid var(--qui); }
+  .qui { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--qui); }
   .accueil { min-height: 40dvh; display: grid; place-content: center; gap: 0.75rem; text-align: center; padding: 2rem 1rem; }
   .accueil h1 { font-size: 3.4rem; margin: 0; }
   .accueil p { margin: 0; max-width: 34ch; color: var(--muted-foreground); }

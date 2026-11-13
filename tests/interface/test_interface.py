@@ -175,7 +175,7 @@ def test_connexion_et_reglages(page):
     page.goto(page.base + "/#/connexion")
     page.get_by_text("Répond, version 3.4.1. 2 personnes nommées.").wait_for()
     page.goto(page.base + "/#/reglages")
-    page.get_by_text("Sillage 0.6.0").wait_for()
+    page.get_by_text("Sillage 0.7.0").wait_for()
     sans_debordement(page)
 
 
@@ -196,7 +196,7 @@ def test_050_l_invite_voit_son_chemin_sans_mot_de_passe(page):
     page.context.clear_cookies()                                                        # pas de session : l'invité n'a pas le mot de passe
     page.goto(page.base + jetons["seule"])
     page.get_by_text("Votre chemin", exact=True).wait_for()
-    assert page.locator("h1").inner_text() == "Camille ROUSSEL"
+    assert page.locator("h1").inner_text().lower() == "votre chemin"                    # 0.7 : une ligne, plus de titre
     assert page.locator("nav[aria-label='Sections']").count() == 0                       # ni navigation, ni corrections, ni Immich
     assert page.get_by_role("button", name="Corriger l'étape").count() == 0 and page.get_by_text("Immich").count() == 0
     assert page.locator(".etape").count() == 8                                          # les temps forts d'abord
@@ -212,9 +212,15 @@ def test_050_deux_invites_le_chemin_commun(page):
     page.context.clear_cookies()
     page.goto(page.base + jetons["couple"])
     page.get_by_text("Votre chemin ensemble").wait_for()
-    assert page.locator("h1").inner_text() == "Camille ROUSSEL et Hugo MARCHAND"
-    assert [t.strip() for t in page.locator(".chapitre").all_inner_texts()] == ["Années 2010"]
-    assert "Mariage de Camille et Hugo" in page.locator(".etape").first.inner_text()
+    assert page.locator(".legende li").all_inner_texts() == ["Camille", "Hugo", "Ensemble"]   # 0.7 : une couleur chacun
+    if page.get_by_role("button", name="Tout", exact=True).count():
+        page.get_by_role("button", name="Tout", exact=True).click()
+    titres = [t.strip() for t in page.locator(".chapitre").all_inner_texts()]
+    assert "Années 2000" in titres and "Années 2010" in titres
+    mariage = page.locator(".etape", has_text="Mariage de Camille et Hugo")
+    assert "Ensemble" in mariage.inner_text().title()
+    couleurs = set(page.locator(".etape.colore").evaluate_all("els => els.map(e => getComputedStyle(e.querySelector('.carte')).borderLeftColor)"))
+    assert len(couleurs) == 3                                                           # Camille, Hugo, ensemble
     page.goto(page.base + jetons["inconnu"])
     page.get_by_text("Pas encore de souvenirs ici").wait_for()
     page.goto(page.base + "/invite/jeton-inconnu")

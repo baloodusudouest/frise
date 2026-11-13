@@ -4,6 +4,7 @@ Fichier à lire en premier dans une nouvelle session, et à mettre à jour à ch
 
 ## État (13/11/2026)
 
+- **0.7.0** : `_ensemble` dans `app/main.py` (commun par `photos_ensemble`, chacun par `photos_de` filtré sur les personnes de la photo ⊆ {invité} ∪ hôtes ; étapes marquées `qui`, clés préfixées). Table `reglages` (clé « hotes »), `GET/PUT /api/reglages`. Le filtre suppose que la recherche d'Immich rend **toutes** les personnes reconnues sur chaque photo (`withPeople`) : à vérifier, sinon des photos avec d'autres gens passeraient. Un visage reconnu mais sans nom compte comme « quelqu'un d'autre ».
 - **0.6.0** : onglet « Chambres » (`pages/Chambres.svelte`, `GET /api/chambres`, `Base.invitations`), aperçu par `Invite.svelte` en mode `apercu`. Colonne `du` ajoutée à la table `invites` au démarrage (bases de la 0.5). La date d'arrivée vient de `sejour_debut` (package HA v1.3).
 - **0.5.0** : vue des invités (`/invite/<jeton>`, `pages/Invite.svelte`), préparée par Home Assistant (`POST /ha/sejour`, jeton `SILLAGE_JETON_HA`, table `invites` dans `app/base.py`). Chemin commun par `immich.photos_ensemble` (plusieurs `personIds`) et `chemin.calculer(..., decennies=True)`. Package HA : `config/packages/chambres/sillage_invites.yaml` du master doc. Thème toujours sombre. **Rien de cela n'a tourné contre le vrai Immich ni le vrai HA.**
 - **0.4.3** : vu sur la vraie photothèque, « ans de mariage … » : la date de tête était retirée par une règle trop large qui mangeait aussi « 50 ». `chemin.sans_date_en_tete` ne retire qu'une vraie date.

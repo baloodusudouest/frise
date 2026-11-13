@@ -326,6 +326,44 @@ def _pour_invite(c: dict) -> dict:
     return {"nom": c["personne"]["nom"], "chapitres": chapitres, "etapes": sum(len(ch["etapes"]) for ch in chapitres)}
 
 
+def _personnes_sur(photo: dict) -> set[str]:
+    return {x["id"] for x in photo.get("people") or [] if x.get("id")}
+
+
+def _ensemble(gens: list[dict], fiches: dict, lire_marques, cfg) -> dict | None:
+    """0.7 : la frise de plusieurs invités. Les moments communs (photos où ils sont tous), et pour chacun ses photos
+    seul ou avec les hôtes de la maison (réglage « hôtes ») : une photo où il y a quelqu'un d'autre n'est pas prise.
+    Chaque étape dit à qui elle est (`qui` : « ensemble » ou le rang de l'invité), par décennie du calendrier."""
+    hotes = {h["id"] for h in ETAT["base"].reglage("hotes", [])}
+    ids = [g["id"] for g in gens]
+    noms = [g["nom"] for g in gens]
+    marques_communes: dict = {}
+    for g in gens:
+        for empreinte, m in lire_marques(g["id"]).items():
+            marques_communes.setdefault(empreinte, {}).update(m)
+    groupes = [("ensemble", {"id": ids[0], "name": ", ".join(noms[:-1]) + " et " + noms[-1]},
+                list(ETAT["immich"].photos_ensemble(ids)), marques_communes)]
+    for rang, g in enumerate(gens):
+        permis = {g["id"]} | hotes
+        a_lui = [p for p in ETAT["immich"].photos_de(g["id"]) if _personnes_sur(p) <= permis]
+        groupes.append((rang, {**fiches.get(g["id"], {"id": g["id"]}), "name": g["nom"]}, a_lui, lire_marques(g["id"])))
+    chapitres: dict[str, dict] = {}
+    for qui, fiche, photos, marques in groupes:
+        if not photos:
+            continue
+        for ch in _pour_invite(calcul.calculer(fiche, photos, _noms_d_albums, cfg.mots, marques, cfg.muets,
+                                               decennies=True))["chapitres"]:
+            dest = chapitres.setdefault(ch["cle"], {"cle": ch["cle"], "titre": ch["titre"], "etapes": []})
+            dest["etapes"] += [{**e, "cle": f"{qui}-{e['cle']}", "qui": qui} for e in ch["etapes"]]
+    if not any(ch["etapes"] for ch in chapitres.values()):
+        return None
+    ordre = sorted(chapitres.values(), key=lambda ch: min(e["debut"] for e in ch["etapes"]))
+    for ch in ordre:
+        ch["etapes"].sort(key=lambda e: (e["debut"], str(e["qui"])))
+    return {"nom": groupes[0][1]["name"], "ensemble": True, "invites": noms, "chapitres": ordre,
+            "etapes": sum(len(ch["etapes"]) for ch in ordre)}
+
+
 def _invitation(jeton: str) -> dict:
     inv = ETAT["base"].invite(jeton)
     if not inv:
@@ -338,28 +376,38 @@ def _invitation(jeton: str) -> dict:
     lire_marques = ETAT["base"].marques
     cfg = ETAT["cfg"]
 
-    def seul(g):
-        fiche = {**fiches.get(g["id"], {"id": g["id"]}), "name": g["nom"]}
-        return calcul.calculer(fiche, ETAT["immich"].photos_de(g["id"]), _noms_d_albums, cfg.mots, lire_marques(g["id"]), cfg.muets)
-
     commun, chacun = None, []
     if len(gens) > 1:
-        marques: dict = {}
-        for g in gens:
-            for empreinte, m in lire_marques(g["id"]).items():
-                marques.setdefault(empreinte, {}).update(m)
-        noms = [g["nom"] for g in gens]
-        fiche = {"id": gens[0]["id"], "name": ", ".join(noms[:-1]) + " et " + noms[-1]}
-        c = _pour_invite(calcul.calculer(fiche, ETAT["immich"].photos_ensemble([g["id"] for g in gens]), _noms_d_albums,
-                                          cfg.mots, marques, cfg.muets, decennies=True))
-        commun = c if c["etapes"] else None
-    if commun is None:
-        chacun = [c for c in (_pour_invite(seul(g)) for g in gens) if c["etapes"]]
+        commun = _ensemble(gens, fiches, lire_marques, cfg)
+    elif gens:
+        g = gens[0]
+        fiche = {**fiches.get(g["id"], {"id": g["id"]}), "name": g["nom"]}
+        c = _pour_invite(calcul.calculer(fiche, ETAT["immich"].photos_de(g["id"]), _noms_d_albums, cfg.mots,
+                                         lire_marques(g["id"]), cfg.muets))
+        chacun = [c] if c["etapes"] else []
     resultat = {"invites": [p["nom"] for p in inv["personnes"]], "commun": commun, "chacun": chacun,
                 "accueil": commun is None and not chacun}
     phares = {e["phare"] for c in ([commun] if commun else []) + chacun for ch in c["chapitres"] for e in ch["etapes"]}
     ETAT["invites"][jeton] = (time.monotonic(), {**resultat, "_phares": phares})
     return ETAT["invites"][jeton][1]
+
+
+@app.get("/api/reglages")
+def reglages():
+    """0.7 : les hôtes de la maison, choisis parmi les personnes d'Immich (frise des invités)."""
+    return {"hotes": ETAT["base"].reglage("hotes", [])}
+
+
+@app.put("/api/reglages")
+def regler(corps: dict = Body(...)):
+    connues = _personnes()
+    voulus = [str(i) for i in (corps.get("hotes") or [])][:6]
+    inconnus = [i for i in voulus if i not in connues]
+    if inconnus:
+        raise HTTPException(422, "Personne inconnue d'Immich.")
+    ETAT["base"].poser_reglage("hotes", [{"id": i, "nom": connues[i]["name"].strip()} for i in dict.fromkeys(voulus)])
+    ETAT["invites"].clear()                          # les frises des chambres sont refaites avec les nouveaux hôtes
+    return reglages()
 
 
 @app.get("/api/chambres")

@@ -1,5 +1,12 @@
 # Journal des versions
 
+## 0.7.0 — 13/11/2026
+
+- **Plusieurs invités : une seule frise en couleurs.** Les moments où ils sont ensemble (miel), et pour chacun, dans sa couleur, ses photos seul ou avec les hôtes de la maison. Une photo où il y a quelqu'un d'autre n'y entre pas. Par décennies du calendrier ; une légende (● Camille ● Hugo ● Ensemble) et le prénom sur chaque carte. Plus d'onglets « chacun son chemin ».
+- **Hôtes de la maison**, réglés dans Sillage (Réglages, choisis parmi les personnes d'Immich). Sans hôte, chaque invité ne garde que ses photos seul.
+- **Page d'invité sans titre** : une ligne (« Votre chemin ensemble »), la légende, la bascule, et la frise tout de suite dessous — pensé pour la carte de 300 px des chambres.
+- Tests : 33 du serveur, 18 d'écran.
+
 ## 0.6.0 — 13/11/2026
 
 - **Onglet « Chambres »** : les pages que Home Assistant a préparées pour les chambres d'amis, dès qu'un séjour y est programmé. Pour chaque chambre : les invités, les dates, les noms qu'Immich ne connaît pas, et l'aperçu de la page telle que la verra le tableau de bord de la chambre. Lecture seule : c'est Home Assistant qui crée et retire les pages.

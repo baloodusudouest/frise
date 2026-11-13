@@ -12,7 +12,7 @@ from app import main
 from app.config import Config
 from app.immich import ErreurImmich, Immich
 
-from .faux_immich import ANONYME, CACHEE, CAMILLE, HUGO, FauxImmich, ident
+from .faux_immich import ANONYME, CACHEE, CAMILLE, HOTE, HUGO, FauxImmich, ident, photo
 
 MDP = "essai-essai-essai"
 
@@ -332,22 +332,36 @@ def test_l_invite_seul_voit_son_chemin(monde):
     assert client.get(f"/api/invite/autre-jeton/vignette/{e['phare']}").status_code == 404
 
 
-def test_deux_invites_le_chemin_commun_puis_celui_de_chacun(monde, c):
+def test_deux_invites_une_frise_en_couleurs(monde, c):
+    """0.7 : moments communs, et chacun seul ou avec les hôtes ; jamais une photo où il y a quelqu'un d'autre."""
     client, faux = monde
+    faux.personnes.append({"id": HOTE, "name": "Alex DUPRÉ", "birthDate": None, "isHidden": False})
+    faux.photos[CAMILLE] += [photo("cafe", "2015-04-01T10:00:00", "2015/2015-04-01 Café du port", aussi=[HOTE]),
+                             photo("foule", "2016-05-01T10:00:00", "2016/2016-05-01 Fête du village", aussi=[ANONYME])]
     h = avec_jeton_ha()
     jeton = sejour(client, h, chambre="ado", noms=["Camille ROUSSEL", "Hugo MARCHAND"])["chemin"].split("/")[-1]
     r = client.get(f"/api/invite/{jeton}").json()
-    assert r["commun"]["nom"] == "Camille ROUSSEL et Hugo MARCHAND" and r["chacun"] == []
-    assert [ch["titre"] for ch in r["commun"]["chapitres"]] == ["Années 2010"]          # ensemble : par décennie du calendrier
-    (e,) = r["commun"]["chapitres"][0]["etapes"]
-    assert e["nom"] == "Mariage de Camille et Hugo" and e["nombre"] == 2
-    # Une étape masquée par l'hôte n'est pas montrée ; sans rien en commun, chacun son chemin
+    f = r["commun"]
+    assert f["ensemble"] and f["invites"] == ["Camille ROUSSEL", "Hugo MARCHAND"] and r["chacun"] == []
+    assert [ch["titre"] for ch in f["chapitres"]] == ["Années 1980", "Années 1990", "Années 2000", "Années 2010"]
+    vus = {(e["nom"] or e["debut"], e["qui"]) for ch in f["chapitres"] for e in ch["etapes"]}
+    assert ("Mariage de Camille et Hugo", "ensemble") in vus
+    assert ("Baptême de Camille", 0) in vus and ("2001-02-03", 1) in vus
+    assert not any(n == "Café du port" for n, _ in vus)                                # sans hôte réglé : seul seulement
+    assert not any(n == "Fête du village" for n, _ in vus)                             # quelqu'un d'autre : jamais
+    assert len({e["cle"] for ch in f["chapitres"] for e in ch["etapes"]}) == f["etapes"]
+    # Les hôtes se règlent dans Sillage ; la photo avec l'hôte entre dans la frise de Camille
+    assert c.put("/api/reglages", json={"hotes": ["pas-une-personne"]}).status_code == 422
+    assert c.put("/api/reglages", json={"hotes": [HOTE]}).json() == {"hotes": [{"id": HOTE, "nom": "Alex DUPRÉ"}]}
+    r = client.get(f"/api/invite/{jeton}").json()
+    vus = {(e["nom"], e["qui"]) for ch in r["commun"]["chapitres"] for e in ch["etapes"]}
+    assert ("Café du port", 0) in vus and not any(n == "Fête du village" for n, _ in vus)
+    # Une étape masquée par l'hôte n'est pas montrée
     c.get(f"/api/chemin/{CAMILLE}")
     marque(c, sorte="masquee", poser=ident("mariage1"))
     main.ETAT["invites"].clear()
     r = client.get(f"/api/invite/{jeton}").json()
-    assert r["commun"] is None and [x["nom"] for x in r["chacun"]] == ["Camille ROUSSEL", "Hugo MARCHAND"]
-    assert all(e["nom"] != "Mariage de Camille et Hugo" for ch in r["chacun"][0]["chapitres"] for e in ch["etapes"])
+    assert all(e["nom"] != "Mariage de Camille et Hugo" for ch in r["commun"]["chapitres"] for e in ch["etapes"])
 
 
 def test_personne_trouvee_le_mot_d_accueil(monde):

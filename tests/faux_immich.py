@@ -15,6 +15,7 @@ def ident(nom: str) -> str:
 
 
 CAMILLE, HUGO, ANONYME, CACHEE = ident("camille"), ident("hugo"), ident("anonyme"), ident("cachee")
+HOTE = ident("hote")       # 0.7 : un hôte de la maison (inventé)
 
 
 def photo(nom, quand, dossier="2020/2020-01-01", visage=0.0, **plus):
@@ -55,6 +56,13 @@ class FauxImmich:
         }
         self.albums = {ident("mariage2"): "Mariage de Camille et Hugo"}
 
+    @staticmethod
+    def _avec_visages(p: dict, qui: str) -> dict:
+        """Comme Immich avec withPeople : toutes les personnes reconnues sur la photo (la personne cherchée, et « aussi »)."""
+        vus = {x["id"] for x in p["people"]}
+        en_plus = [{"id": i, "faces": []} for i in dict.fromkeys([qui, *p.get("aussi", [])]) if i not in vus]
+        return {**p, "people": p["people"] + en_plus}
+
     def repondre(self, demande: httpx.Request) -> httpx.Response:
         chemin = demande.url.path.removeprefix("/api")
         self.demandes.append((demande.method, chemin))
@@ -67,9 +75,9 @@ class FauxImmich:
         if chemin == "/search/metadata" and demande.method == "POST":
             corps = json.loads(demande.content)
             ids = corps["personIds"]
-            items = self.photos.get(ids[0], [])
+            items = [self._avec_visages(p, ids[0]) for p in self.photos.get(ids[0], [])]
             if len(ids) > 1:                       # comme Immich : les photos où toutes ces personnes sont reconnues
-                items = [p for p in items if set(ids[1:]) <= {x["id"] for x in p["people"]} | set(p.get("aussi", []))]
+                items = [p for p in items if set(ids[1:]) <= {x["id"] for x in p["people"]}]
             return httpx.Response(200, json={"assets": {"items": items, "nextPage": None}})
         if chemin == "/albums":
             nom = self.albums.get(demande.url.params.get("assetId"))
