@@ -5,7 +5,8 @@
   import { onMount } from 'svelte'
   import { periode } from '$lib/dates.js'
 
-  let { jeton } = $props()
+  // apercu (0.6) : la même page, montrée au propriétaire dans l'onglet « Chambres »
+  let { jeton, apercu = false } = $props()
   let d = $state(null)
   let erreur = $state('')
   let tout = $state(false)
@@ -51,7 +52,7 @@
 
 <svelte:window onscroll={mesurer} onresize={mesurer} />
 
-<main class="mx-auto max-w-5xl px-[max(1rem,env(safe-area-inset-left))] pt-[calc(1.25rem+env(safe-area-inset-top))] pb-[calc(2rem+env(safe-area-inset-bottom))]">
+<svelte:element this={apercu ? 'div' : 'main'} class={apercu ? '' : 'mx-auto max-w-5xl px-[max(1rem,env(safe-area-inset-left))] pt-[calc(1.25rem+env(safe-area-inset-top))] pb-[calc(2rem+env(safe-area-inset-bottom))]'}>
   {#if erreur}
     <div class="accueil" role="alert"><h1 class="plume">Sillage</h1><p>{erreur}</p></div>
   {:else if !d}
@@ -103,7 +104,7 @@
       </div>
     {/key}
   {/if}
-</main>
+</svelte:element>
 
 <style>
   .chemin { position: relative; --trait: 1.25rem; }
@@ -151,7 +152,7 @@
   .onglets { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1.25rem; }
   .onglets button { min-height: 2.75rem; padding: 0 1rem; border-radius: 999px; border: 1px solid var(--border); background: var(--card); font-size: 0.95rem; }
   .onglets button[aria-pressed='true'] { background: var(--app); border-color: var(--app); color: var(--app-contraste); font-weight: 600; }
-  .accueil { min-height: 60dvh; display: grid; place-content: center; gap: 0.75rem; text-align: center; padding: 2rem 1rem; }
+  .accueil { min-height: 40dvh; display: grid; place-content: center; gap: 0.75rem; text-align: center; padding: 2rem 1rem; }
   .accueil h1 { font-size: 3.4rem; margin: 0; }
   .accueil p { margin: 0; max-width: 34ch; color: var(--muted-foreground); }
 </style>

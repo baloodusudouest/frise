@@ -383,3 +383,27 @@ def test_decoupage():
     jours = [(datetime(2020, 1, j), {"id": str(j)}) for j in (1, 2, 4, 7, 8, 20)]
     assert [len(g) for g in calcul.grouper(jours)] == [3, 2, 1]
     assert calcul.date_de({"localDateTime": "n'importe quoi"}) is None
+
+
+def test_onglet_chambres_montre_les_pages_preparees(monde):
+    """0.6 : le propriétaire voit les pages préparées par HA, par date d'arrivée ; la date d'arrivée garde le lien."""
+    from datetime import date, timedelta
+    client, _ = monde
+    h = avec_jeton_ha()
+    assert client.get("/api/chambres").status_code == 401                                # réservé au propriétaire
+    d1, d5 = (date.today() + timedelta(days=1)).isoformat(), (date.today() + timedelta(days=5)).isoformat()
+    a = sejour(client, h, chambre="stitch", noms=["Camille ROUSSEL"], du=d5,
+               jusqu_au=(date.today() + timedelta(days=7)).isoformat())
+    sejour(client, h, chambre="ami", noms=["Camille ROUSSEL", "Inconnu TOTAL"], du=d1)
+    assert sejour(client, h, chambre="stitch", noms=["Camille ROUSSEL"], du=d1,
+                  jusqu_au=(date.today() + timedelta(days=7)).isoformat())["chemin"] == a["chemin"]
+    assert client.post("/api/connexion", json={"mot_de_passe": MDP}).status_code == 200
+    ch = client.get("/api/chambres").json()["chambres"]
+    assert [c["chambre"] for c in ch] == ["ami", "stitch"]                               # même arrivée : par chambre
+    ami = ch[0]
+    assert ami["noms"] == ["Camille ROUSSEL"] and ami["introuvables"] == [] and ami["du"] == d1
+    assert ami["au"] == (date.today() + timedelta(days=2)).isoformat()
+    assert ch[1]["jeton"] == a["chemin"].split("/")[-1]
+    sejour(client, h, chambre="ami", noms=["Inconnu TOTAL"], du="pas une date")         # personne de trouvé, date illisible
+    ami = next(c for c in client.get("/api/chambres").json()["chambres"] if c["chambre"] == "ami")
+    assert ami["introuvables"] == ["Inconnu TOTAL"] and ami["du"] == ""

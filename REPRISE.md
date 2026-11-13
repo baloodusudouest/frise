@@ -4,6 +4,7 @@ Fichier à lire en premier dans une nouvelle session, et à mettre à jour à ch
 
 ## État (13/11/2026)
 
+- **0.6.0** : onglet « Chambres » (`pages/Chambres.svelte`, `GET /api/chambres`, `Base.invitations`), aperçu par `Invite.svelte` en mode `apercu`. Colonne `du` ajoutée à la table `invites` au démarrage (bases de la 0.5). La date d'arrivée vient de `sejour_debut` (package HA v1.3).
 - **0.5.0** : vue des invités (`/invite/<jeton>`, `pages/Invite.svelte`), préparée par Home Assistant (`POST /ha/sejour`, jeton `SILLAGE_JETON_HA`, table `invites` dans `app/base.py`). Chemin commun par `immich.photos_ensemble` (plusieurs `personIds`) et `chemin.calculer(..., decennies=True)`. Package HA : `config/packages/chambres/sillage_invites.yaml` du master doc. Thème toujours sombre. **Rien de cela n'a tourné contre le vrai Immich ni le vrai HA.**
 - **0.4.3** : vu sur la vraie photothèque, « ans de mariage … » : la date de tête était retirée par une règle trop large qui mangeait aussi « 50 ». `chemin.sans_date_en_tete` ne retire qu'une vraie date.
 - **0.4.2** : croix de la photo en grand recouverte par le compteur (corrigé, test sur trois hauteurs du bouton) ; « Ouvrir dans Immich » en bouton, adresse déduite de l'hôte et de `SILLAGE_IMMICH_PORT`. **Décision : ce lien, comme les corrections, est réservé au propriétaire ; la vue des invités, quand elle existera, ne les montrera pas.**

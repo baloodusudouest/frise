@@ -175,7 +175,7 @@ def test_connexion_et_reglages(page):
     page.goto(page.base + "/#/connexion")
     page.get_by_text("Répond, version 3.4.1. 2 personnes nommées.").wait_for()
     page.goto(page.base + "/#/reglages")
-    page.get_by_text("Sillage 0.5.0").wait_for()
+    page.get_by_text("Sillage 0.6.0").wait_for()
     sans_debordement(page)
 
 
@@ -219,4 +219,23 @@ def test_050_deux_invites_le_chemin_commun(page):
     page.get_by_text("Pas encore de souvenirs ici").wait_for()
     page.goto(page.base + "/invite/jeton-inconnu")
     page.get_by_text("n'est plus valable").wait_for()
+    sans_debordement(page)
+
+
+def test_060_onglet_chambres_apercu_des_invites(page):
+    invitations()
+    page.goto(page.base + "/#/chambres")
+    if page.locator("#mot-de-passe").count():                                        # les tests de l'invité ont vidé les cookies
+        page.fill("#mot-de-passe", MDP)
+        page.click("button[type=submit]")
+    page.get_by_role("heading", name="Chambres", exact=True).wait_for()
+    choix = page.locator("[aria-label=Chambre] button")
+    assert sorted(choix.all_inner_texts()) == ["Chambre Couple", "Chambre Inconnu", "Chambre Seule"]
+    page.get_by_role("button", name="Chambre Couple").click()
+    page.get_by_text("Votre chemin ensemble").wait_for()
+    assert "Camille ROUSSEL et Hugo MARCHAND" in page.locator(".fiche").inner_text()
+    page.get_by_role("button", name="Chambre Inconnu").click()
+    page.get_by_text("pas de personne de ce nom dans Immich").wait_for()
+    page.get_by_text("Pas encore de souvenirs ici").wait_for()
+    assert page.locator("main main").count() == 0                                    # l'aperçu n'ouvre pas une seconde page
     sans_debordement(page)

@@ -301,11 +301,15 @@ def sejour(corps: dict = Body(...)):
     if not date.today() <= dernier <= date.today() + timedelta(days=400):
         raise HTTPException(422, "Date de fin hors du séjour possible.")
     expire = datetime.combine(dernier + timedelta(days=1), datetime.min.time()).replace(hour=12).isoformat(timespec="seconds")
+    try:
+        du = date.fromisoformat(str(corps.get("du") or "")[:10]).isoformat() if corps.get("du") else ""
+    except ValueError:
+        du = ""                                          # 0.6 : facultative, ne bloque rien
     trouves, manquants = [], []
     for n in noms:
         p = _trouver(n)
         (trouves.append({"id": p["id"], "nom": n}) if p else manquants.append(n))
-    jeton = ETAT["base"].poser_invite(chambre, trouves or [{"id": "", "nom": n} for n in noms], expire)
+    jeton = ETAT["base"].poser_invite(chambre, trouves or [{"id": "", "nom": n} for n in noms], expire, du)
     ETAT["invites"].pop(jeton, None)
     return {"chemin": f"/invite/{jeton}", "trouves": [t["nom"] for t in trouves], "manquants": manquants, "expire": expire}
 
@@ -356,6 +360,18 @@ def _invitation(jeton: str) -> dict:
     phares = {e["phare"] for c in ([commun] if commun else []) + chacun for ch in c["chapitres"] for e in ch["etapes"]}
     ETAT["invites"][jeton] = (time.monotonic(), {**resultat, "_phares": phares})
     return ETAT["invites"][jeton][1]
+
+
+@app.get("/api/chambres")
+def chambres():
+    """0.6 : les pages préparées par Home Assistant, pour l'onglet « Chambres » du propriétaire (lecture seule)."""
+    sortie = []
+    for i in ETAT["base"].invitations():
+        fin = (datetime.fromisoformat(i["expire"]).date() - timedelta(days=1)).isoformat()
+        sortie.append({"chambre": i["chambre"], "jeton": i["jeton"], "du": i["du"], "au": fin,
+                       "noms": [p["nom"] for p in i["personnes"]],
+                       "introuvables": [p["nom"] for p in i["personnes"] if not p.get("id")]})
+    return {"chambres": sortie}
 
 
 @app.get("/api/invite/{jeton}")

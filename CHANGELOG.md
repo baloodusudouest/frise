@@ -1,5 +1,11 @@
 # Journal des versions
 
+## 0.6.0 — 13/11/2026
+
+- **Onglet « Chambres »** : les pages que Home Assistant a préparées pour les chambres d'amis, dès qu'un séjour y est programmé. Pour chaque chambre : les invités, les dates, les noms qu'Immich ne connaît pas, et l'aperçu de la page telle que la verra le tableau de bord de la chambre. Lecture seule : c'est Home Assistant qui crée et retire les pages.
+- `POST /ha/sejour` accepte la date d'arrivée (`du`, facultative, AAAA-MM-JJ). La changer garde le même lien. Package HA `sillage_invites.yaml` v1.3.
+- Tests : 33 du serveur, 18 d'écran.
+
 ## 0.5.0 — 13/11/2026
 
 - **Vue des invités.** Une page sans mot de passe, `/invite/<jeton>`, faite pour le tableau de bord d'une chambre d'amis. Home Assistant la prépare au début du séjour : `POST /ha/sejour` (en-tête `Authorization: Bearer <SILLAGE_JETON_HA>`) avec la chambre, les noms des invités (quatre au plus) et le dernier jour. Sillage cherche chaque nom parmi les personnes nommées d'Immich (à l'identique, puis sans accents ; un homonyme n'est pas pris) et rend le chemin de la page. Le lien vaut jusqu'au lendemain du dernier jour, à midi ; un nouveau séjour dans la chambre donne un nouveau lien et efface l'ancien. Sans nom, la chambre est vidée.

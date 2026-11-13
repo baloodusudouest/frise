@@ -81,7 +81,7 @@ def main_() -> None:
         fin, h = (date.today() + timedelta(days=2)).isoformat(), {"Authorization": "Bearer jeton-ha"}
         jetons = {}
         for chambre, noms in (("seule", ["Camille ROUSSEL"]), ("couple", ["Camille ROUSSEL", "Hugo MARCHAND"]), ("inconnu", ["Personne INCONNUE"])):
-            r = httpx.post(f"http://127.0.0.1:{port}/ha/sejour", headers=h, json={"chambre": chambre, "noms": noms, "jusqu_au": fin})
+            r = httpx.post(f"http://127.0.0.1:{port}/ha/sejour", headers=h, json={"chambre": chambre, "noms": noms, "jusqu_au": fin, "du": fin})
             jetons[chambre] = r.json()["chemin"]
         (racine / "invites.json").write_text(json.dumps(jetons))
     threading.Thread(target=inviter, daemon=True).start()

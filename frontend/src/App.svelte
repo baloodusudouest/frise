@@ -4,6 +4,7 @@
   import { fly } from 'svelte/transition'
   import Waves from '@lucide/svelte/icons/waves'
   import Network from '@lucide/svelte/icons/network'
+  import BedDouble from '@lucide/svelte/icons/bed-double'
   import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal'
   import { api } from '$lib/api.js'
   import Connexion from './pages/Connexion.svelte'
@@ -12,10 +13,12 @@
   import Recit from './pages/Recit.svelte'
   import Invite from './pages/Invite.svelte'
   import Services from './pages/Services.svelte'
+  import Chambres from './pages/Chambres.svelte'
   import Reglages from './pages/Reglages.svelte'
 
   const onglets = [
     { page: 'sillages', nom: 'Sillages', icone: Waves },
+    { page: 'chambres', nom: 'Chambres', icone: BedDouble },
     { page: 'connexion', nom: 'Connexion', icone: Network },
     { page: 'reglages', nom: 'Réglages', icone: SlidersHorizontal },
   ]
@@ -93,6 +96,8 @@
             <Chemin id={route.id} ondeconnecte={dehors} />
           {:else if route.page === 'recit'}
             <Recit id={route.id} ondeconnecte={dehors} />
+          {:else if route.page === 'chambres'}
+            <Chambres ondeconnecte={dehors} />
           {:else if route.page === 'connexion'}
             <Services ondeconnecte={dehors} />
           {:else if route.page === 'reglages'}
