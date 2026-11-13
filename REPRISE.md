@@ -4,6 +4,7 @@ Fichier à lire en premier dans une nouvelle session, et à mettre à jour à ch
 
 ## État (13/11/2026)
 
+- **0.2.0** (13/11/2026) : connexion commune avec l'Anneau — cookie `maison_session` (accepté ; `Sessions.connecte`, `commun_valide` dans `app/auth.py`). Jamais essayée sur la vraie installation.
 - **Version 0.1.0 codée et publiée** (`ghcr.io/baloodusudouest/sillage:latest`, port 8093) : personnes d'Immich, chemin d'une personne, étape ouverte, photo en grand. Lecture seule d'Immich. 16 tests du serveur, 8 d'écran (PC et iPhone), 3 de l'ancienne sonde.
 - **Jamais lancée sur la vraie photothèque.** C'est elle qui sert de sonde : à regarder sur cinq personnes.
 - Dossier ([`docs/dossier.md`](docs/dossier.md)), conseil ([`docs/conseil.md`](docs/conseil.md)), décisions d'après conseil en fin de dossier.
