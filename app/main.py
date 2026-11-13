@@ -6,6 +6,7 @@ Routes : /health (publique), /api/session, /api/connexion, /api/deconnexion, /ap
 from __future__ import annotations
 
 import asyncio
+import logging
 import re
 import threading
 import time
@@ -14,6 +15,7 @@ from contextlib import asynccontextmanager
 from datetime import date
 from pathlib import Path
 
+import httpx
 from fastapi import Body, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 
@@ -29,6 +31,7 @@ IMAGES = ("/api/portrait/", "/api/vignette/")
 MEMOIRE = 600            # secondes pendant lesquelles un chemin ou la liste des personnes est gardé
 UUID = re.compile(r"^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$")
 VERROU = threading.Lock()
+log = logging.getLogger("sillage")
 
 
 def _fichier_generation(cfg: Config) -> Path:
@@ -115,26 +118,59 @@ def deconnexion():
 
 # ================================================================ personnes
 
+def _de_carnet() -> tuple[dict[str, dict], str]:
+    """Les fiches de carnet liées à une personne d'Immich : identifiant Immich → fiche. Une lecture seule,
+    avec le jeton de Sillage. Rend aussi la raison quand carnet ne répond pas (alors : Immich seul)."""
+    cfg = ETAT["cfg"]
+    if not cfg.carnet_jeton:
+        return {}, ""
+    try:
+        with httpx.Client(timeout=10, transport=ETAT.get("carnet_transport")) as client:
+            r = client.get(cfg.carnet_url + "/sillage/personnes", headers={"Authorization": f"Bearer {cfg.carnet_jeton}"})
+        if r.status_code == 401:
+            return {}, "carnet refuse le jeton de Sillage."
+        r.raise_for_status()
+        return {p["immich_id"]: p for p in r.json()["personnes"] if p.get("immich_id")}, ""
+    except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
+        log.warning("carnet ne répond pas : %s", exc.__class__.__name__)
+        return {}, "carnet ne répond pas."
+
+
 def _personnes(frais: bool = False) -> dict[str, dict]:
-    """Les personnes nommées et non masquées d'Immich, gardées dix minutes."""
+    """Les personnes que Sillage connaît, gardées dix minutes : celles des fiches de carnet liées à Immich,
+    et les personnes nommées et non masquées d'Immich. Le nom de la fiche passe devant celui d'Immich ;
+    la date de naissance est toujours celle d'Immich."""
     garde_ = ETAT["personnes"]
     if garde_ and not frais and time.monotonic() - garde_[0] < MEMOIRE:
         return garde_[1]
-    liste = {p["id"]: p for p in ETAT["immich"].personnes() if (p.get("name") or "").strip() and not p.get("isHidden")}
+    fiches, erreur = _de_carnet()
+    liste = {}
+    for p in ETAT["immich"].personnes():
+        fiche = fiches.get(p["id"])
+        if fiche:
+            liste[p["id"]] = {**p, "name": fiche.get("nom") or p.get("name") or "", "carnet": True,
+                              "proche": bool(fiche.get("proche")), "decede": bool(fiche.get("decede"))}
+        elif (p.get("name") or "").strip() and not p.get("isHidden"):
+            liste[p["id"]] = {**p, "carnet": False}
     ETAT["personnes"] = (time.monotonic(), liste)
+    ETAT["carnet"] = {"regle": bool(ETAT["cfg"].carnet_jeton), "erreur": erreur, "fiches": len(fiches)}
     ETAT["derniere_lecture"] = time.time()
     return liste
 
 
 @app.get("/api/personnes")
 def personnes(frais: bool = False):
+    """La liste d'ouverture. Avec carnet : ses fiches d'abord, les autres personnes d'Immich se trouvent par la recherche."""
     aujourd_hui = date.today()
     sortie = []
     for p in _personnes(frais).values():
         naissance = calcul.jour(p.get("birthDate"))
         sortie.append({"id": p["id"], "nom": p["name"].strip(), "naissance": naissance.isoformat() if naissance else None,
-                       "age": calcul.age(naissance, aujourd_hui) if naissance else None})
-    return {"personnes": sorted(sortie, key=lambda p: calcul._plat(p["nom"]))}
+                       "age": calcul.age(naissance, aujourd_hui) if naissance and not p.get("decede") else None,
+                       "carnet": bool(p.get("carnet")), "proche": bool(p.get("proche")), "decede": bool(p.get("decede"))})
+    par_carnet = any(p["carnet"] for p in sortie)
+    return {"personnes": sorted(sortie, key=lambda p: calcul._plat(p["nom"])), "par_carnet": par_carnet,
+            "carnet": ETAT.get("carnet", {})}
 
 
 def _noms_d_albums(photos: list[str]) -> dict[str, str]:
@@ -245,7 +281,8 @@ def services():
     except ErreurImmich as exc:
         version, erreur, nombre = "", str(exc), 0
     return {"immich": {"repond": not erreur, "version": version, "erreur": erreur, "personnes": nombre,
-                       "lecture_seule": True}}
+                       "lecture_seule": True},
+            "carnet": ETAT.get("carnet", {"regle": bool(ETAT["cfg"].carnet_jeton), "erreur": "", "fiches": 0})}
 
 
 # ================================================================ interface

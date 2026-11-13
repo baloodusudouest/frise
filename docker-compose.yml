@@ -14,6 +14,8 @@ services:
       - SILLAGE_IMMICH_CLE=${SILLAGE_IMMICH_CLE}     # clé d'API Immich, en lecture seule
       - SILLAGE_IMMICH_ADRESSE=${SILLAGE_IMMICH_ADRESSE:-}   # adresse d'Immich dans le navigateur (lien « Ouvrir dans Immich »)
       - SILLAGE_DOSSIERS_MUETS=${SILLAGE_DOSSIERS_MUETS:-}   # noms de dossier qui ne disent rien, séparés par des virgules
+      - SILLAGE_CARNET_URL=http://carnet:8096          # carnet vu depuis la stack
+      - SILLAGE_CARNET_JETON=${SILLAGE_CARNET_JETON:-}   # le même jeton que CARNET_JETON_SILLAGE ; vide : personnes d'Immich
       - SILLAGE_MOTS=${SILLAGE_MOTS:-}               # mots des temps forts, séparés par des virgules ; vide : la liste par défaut
     volumes:
       - ${SILLAGE_DATA_DIR}:/data                    # un seul petit fichier (déconnexion)

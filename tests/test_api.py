@@ -225,6 +225,51 @@ def test_raconter(c):
     assert c.put(f"/api/recit/{ident('personne')}", json={"texte": "x"}).status_code == 404
 
 
+def avec_carnet(reponse):
+    """Sillage réglé pour lire carnet, et un faux carnet qui répond `reponse` (code, corps)."""
+    import dataclasses
+
+    import httpx
+    vues = []
+
+    def repondre(demande):
+        vues.append((demande.method, demande.url.path, demande.headers.get("authorization")))
+        return httpx.Response(reponse[0], json=reponse[1])
+    main.ETAT["cfg"] = dataclasses.replace(main.ETAT["cfg"], carnet_url="http://carnet", carnet_jeton="jeton-sillage")
+    main.ETAT["carnet_transport"] = httpx.MockTransport(repondre)
+    main.ETAT["personnes"] = None
+    return vues
+
+
+def test_les_personnes_viennent_de_carnet(c):
+    vues = avec_carnet((200, {"personnes": [
+        {"carnet_id": "f1", "nom": "Camille R.", "immich_id": CAMILLE, "groupes": ["Famille"], "proche": True, "decede": False},
+        {"carnet_id": "f2", "nom": "Tante Lise", "immich_id": CACHEE, "groupes": [], "proche": False, "decede": True},
+        {"carnet_id": "f3", "nom": "Fiche sans personne", "immich_id": ident("disparue"), "groupes": [], "proche": False, "decede": False}]}))
+    r = c.get("/api/personnes").json()
+    assert vues == [("GET", "/sillage/personnes", "Bearer jeton-sillage")]
+    par_nom = {p["nom"]: p for p in r["personnes"]}
+    assert set(par_nom) == {"Camille R.", "Tante Lise", "Hugo MARCHAND"}             # le nom de la fiche passe devant
+    assert par_nom["Camille R."]["carnet"] and par_nom["Camille R."]["proche"] and par_nom["Camille R."]["naissance"] == "1987-03-14"
+    assert par_nom["Tante Lise"]["carnet"] and par_nom["Tante Lise"]["decede"] and par_nom["Tante Lise"]["age"] is None
+    assert par_nom["Hugo MARCHAND"]["carnet"] is False                                # hors carnet : par la recherche
+    assert r["par_carnet"] is True and r["carnet"] == {"regle": True, "erreur": "", "fiches": 3}
+    assert c.get(f"/api/chemin/{CAMILLE}").json()["personne"]["nom"] == "Camille R."
+    assert c.get(f"/api/chemin/{CACHEE}").status_code == 200                          # masquée dans Immich, mais liée par carnet
+    assert c.get("/api/services").json()["carnet"]["fiches"] == 3
+
+
+def test_carnet_muet_ou_ferme_immich_en_secours(c):
+    avec_carnet((500, {}))
+    r = c.get("/api/personnes").json()
+    assert [p["nom"] for p in r["personnes"]] == ["Camille ROUSSEL", "Hugo MARCHAND"]
+    assert r["par_carnet"] is False and r["carnet"]["erreur"] == "carnet ne répond pas."
+    avec_carnet((401, {"detail": "non"}))
+    assert c.get("/api/personnes").json()["carnet"]["erreur"] == "carnet refuse le jeton de Sillage."
+    avec_carnet((200, {"autre": "chose"}))
+    assert c.get("/api/personnes").json()["carnet"]["erreur"] == "carnet ne répond pas."
+
+
 def test_deconnexion(c):
     assert c.post("/api/deconnexion").status_code == 200
     assert c.get("/api/personnes").status_code == 401
