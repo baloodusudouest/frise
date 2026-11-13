@@ -1,5 +1,9 @@
 # Journal des versions
 
+## 0.4.3 — 13/11/2026
+
+- **Un nom de dossier ne perd plus son nombre.** Sillage retirait tous les chiffres en tête du nom, pas seulement la date : « 2004-04-01 50 ans de mariage… » devenait « ans de mariage… ». Seule une vraie date est retirée maintenant (année, année-mois, année-mois-jour, jour-mois-année, ou une période de deux dates).
+
 ## 0.4.2 — 13/11/2026
 
 - **La croix d'une photo ouverte en grand se ferme d'un clic au centre.** Le compteur (« 2 / 40 »), remonté en haut à la 0.3.0, passait par-dessus : seul le bas du bouton répondait.

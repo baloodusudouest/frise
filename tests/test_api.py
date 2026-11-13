@@ -204,6 +204,12 @@ def test_le_nom_vient_de_l_album_le_plus_frequent_puis_du_dossier():
     r = calcul.calculer({"id": "x", "name": "X"}, photos[:1], lambda ids: {"0": "noël chez mamie"})
     assert [e["nom"] for ch in r["chapitres"] for e in ch["etapes"]] == ["Noël chez mamie"]      # majuscule d'office, reste intact
     assert calcul.majuscule("  été à la mer ") == "Été à la mer" and calcul.majuscule("") == "" and calcul.majuscule("iPhone de Léa") == "IPhone de Léa"
+    for dossier, attendu in (("2004-04-01 50 ans de mariage pépé mémé", "50 ans de mariage pépé mémé"), ("2004 50 ans de mariage", "50 ans de mariage"),
+                             ("2019-06 Mariage", "Mariage"), ("20190615 Mariage", "Mariage"), ("15-06-2019 Mariage", "Mariage"),
+                             ("2004-04-01 - 2004-04-03 Voyage à Rome", "Voyage à Rome"), ("2004-04-01 au 2004-04-03 Voyage", "Voyage"),
+                             ("18 ans de Léa", "18 ans de Léa"), ("2010 12 ans de Léa", "12 ans de Léa"), ("3 jours à Paris", "3 jours à Paris"),
+                             ("1er mai", "1er mai"), ("2019", ""), ("2019-06-15", ""), ("2019_06_15_Fête", "Fête")):
+        assert calcul.nom_du_dossier({"originalPath": f"/a/{dossier}/x.jpg"}) == attendu, dossier
     for muet in ("DCIM", "100APPLE", "Pellicule", "2019", "2020-05-01"):
         assert calcul.nom_du_dossier({"originalPath": f"/a/{muet}/x.jpg"}) == "", muet
     assert calcul.nom_du_dossier({"originalPath": "/a/Mon dossier/x.jpg"}, muets=("mon dossier",)) == ""

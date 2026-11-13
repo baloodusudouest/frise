@@ -13,7 +13,21 @@ from typing import Callable, Iterable
 ECART = timedelta(days=2)
 MOTS = ("mariage", "noces", "bapteme", "communion", "anniversaire", "diplome", "remise", "naissance",
         "noel", "vacances", "voyage", "fete")
-_DATE_EN_TETE = re.compile(r"^[\s\d._/-]+")
+# Une date en tête de nom de dossier : « 2004 », « 2004-04 », « 2004-04-01 », « 20040401 », « 01-04-2004 ».
+# Seulement une vraie date : « 50 ans de mariage » garde son nombre.
+_MOIS, _JOUR = r"(?:0?[1-9]|1[0-2])", r"(?:0?[1-9]|[12]\d|3[01])"
+_DATE_EN_TETE = re.compile(rf"^(?:(?:19|20)\d{{2}}(?:[-._/]{_MOIS}(?:[-._/]{_JOUR})?)?|(?:19|20)\d{{6}}|{_JOUR}[-._/]{_MOIS}[-._/](?:19|20)\d{{2}})(?=$|[\s_\-–—])")
+
+
+def sans_date_en_tete(nom: str) -> str:
+    """Retire la ou les dates qui ouvrent le nom (« 2004-04-01 - 2004-04-03 Voyage » → « Voyage »)."""
+    nom = nom.strip()
+    for _ in range(2):
+        court = _DATE_EN_TETE.sub("", nom, count=1)
+        if court == nom:
+            break
+        nom = re.sub(r"^(?:[\s_\-–—]+|au\s+|et\s+)+", "", court)
+    return nom.strip(" -_–—")
 
 
 def _plat(texte: str) -> str:
@@ -56,7 +70,7 @@ def nom_du_dossier(photo: dict, muets: tuple[str, ...] = ()) -> str:
     if len(morceaux) < 2:
         return ""
     brut = morceaux[-2].strip()
-    nom = _DATE_EN_TETE.sub("", brut).strip(" -_")
+    nom = sans_date_en_tete(brut)
     sourds = {_plat(m) for m in MUETS + tuple(muets)}
     if re.fullmatch(r"\d{3}[A-Za-z_]{3,8}", brut) or _plat(brut) in sourds or _plat(nom) in sourds:   # « 100APPLE », « DCIM »
         return ""
