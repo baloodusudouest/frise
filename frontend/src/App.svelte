@@ -10,6 +10,7 @@
   import Sillages from './pages/Sillages.svelte'
   import Chemin from './pages/Chemin.svelte'
   import Recit from './pages/Recit.svelte'
+  import Invite from './pages/Invite.svelte'
   import Services from './pages/Services.svelte'
   import Reglages from './pages/Reglages.svelte'
 
@@ -19,6 +20,8 @@
     { page: 'reglages', nom: 'Réglages', icone: SlidersHorizontal },
   ]
 
+  // 0.5 : /invite/<jeton> est la page d'un invité des chambres : ni mot de passe, ni navigation
+  const jetonInvite = location.pathname.match(/^\/invite\/([A-Za-z0-9_-]+)\/?$/)?.[1] || ''
   let connecte = $state(null) // null : on ne sait pas encore
   let session = $state({ version: '' })
   let route = $state(lireRoute())
@@ -46,12 +49,14 @@
   }
   const dehors = () => (connecte = false)
 
-  onMount(verifier)
+  onMount(() => { if (!jetonInvite) verifier() })
 </script>
 
 <svelte:window onhashchange={() => (route = lireRoute())} />
 
-{#if connecte === false}
+{#if jetonInvite}
+  <Invite jeton={jetonInvite} />
+{:else if connecte === false}
   <Connexion onconnecte={verifier} />
 {:else if connecte}
   <div class="md:pl-52">

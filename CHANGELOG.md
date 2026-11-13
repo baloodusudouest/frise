@@ -1,5 +1,13 @@
 # Journal des versions
 
+## 0.5.0 — 13/11/2026
+
+- **Vue des invités.** Une page sans mot de passe, `/invite/<jeton>`, faite pour le tableau de bord d'une chambre d'amis. Home Assistant la prépare au début du séjour : `POST /ha/sejour` (en-tête `Authorization: Bearer <SILLAGE_JETON_HA>`) avec la chambre, les noms des invités (quatre au plus) et le dernier jour. Sillage cherche chaque nom parmi les personnes nommées d'Immich (à l'identique, puis sans accents ; un homonyme n'est pas pris) et rend le chemin de la page. Le lien vaut jusqu'au lendemain du dernier jour, à midi ; un nouveau séjour dans la chambre donne un nouveau lien et efface l'ancien. Sans nom, la chambre est vidée.
+- **Ce que voit l'invité** : son chemin, temps forts d'abord (bascule « Tout »), avec la photo phare de chaque étape. Ni Raconter, ni photos en grand, ni corrections, ni « Ouvrir dans Immich ». Seules les photos phares passent par le lien.
+- **Plusieurs invités** : leur chemin commun (photos où ils sont ensemble), découpé par décennies (« Années 2010 »). Sans photo commune, le chemin de chacun, en onglets. Personne de trouvé, ou personne sans photo : un mot d'accueil.
+- **Toujours sombre**, comme les autres applis, même sur un appareil réglé en clair.
+- Tests : 32 du serveur, 16 d'écran.
+
 ## 0.4.3 — 13/11/2026
 
 - **Un nom de dossier ne perd plus son nombre.** Sillage retirait tous les chiffres en tête du nom, pas seulement la date : « 2004-04-01 50 ans de mariage… » devenait « ans de mariage… ». Seule une vraie date est retirée maintenant (année, année-mois, année-mois-jour, jour-mois-année, ou une période de deux dates).

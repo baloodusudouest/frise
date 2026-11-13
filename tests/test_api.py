@@ -279,6 +279,96 @@ def test_carnet_muet_ou_ferme_immich_en_secours(c):
     assert c.get("/api/personnes").json()["carnet"]["erreur"] == "carnet ne répond pas."
 
 
+# ------------------------------------------------------------ 0.5 : invités des chambres
+
+def avec_jeton_ha():
+    import dataclasses
+    main.ETAT["cfg"] = dataclasses.replace(main.ETAT["cfg"], jeton_ha="jeton-ha")
+    return {"Authorization": "Bearer jeton-ha"}
+
+
+def sejour(c, h, **corps):
+    from datetime import date, timedelta
+    corps.setdefault("chambre", "ami")
+    corps.setdefault("jusqu_au", (date.today() + timedelta(days=2)).isoformat())
+    r = c.post("/ha/sejour", json=corps, headers=h)
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def test_ha_prepare_l_invitation(monde):
+    client, faux = monde
+    assert client.post("/ha/sejour", json={"chambre": "ami", "noms": ["Camille ROUSSEL"]}).status_code == 401   # fermé sans jeton
+    h = avec_jeton_ha()
+    assert client.post("/ha/sejour", json={"chambre": "ami", "noms": ["x"]}, headers={"Authorization": "Bearer faux"}).status_code == 401
+    r = sejour(client, h, noms=["camille roussel", "Inconnu TOTAL"])                     # sans majuscules : trouvée
+    assert r["chemin"].startswith("/invite/") and r["trouves"] == ["camille roussel"] and r["manquants"] == ["Inconnu TOTAL"]
+    assert sejour(client, h, noms=["camille roussel", "Inconnu TOTAL"])["chemin"] == r["chemin"]   # rien n'a changé : même jeton
+    autre = sejour(client, h, noms=["Camille ROUSSEL"])
+    assert autre["chemin"] != r["chemin"]
+    assert client.get("/api" + r["chemin"]).status_code == 404                           # l'ancienne invitation ne marche plus
+    assert client.get("/api" + autre["chemin"]).status_code == 200                       # sans mot de passe : c'est le jeton qui ouvre
+    for faux_corps in ({"noms": ["A"]}, {"chambre": "ami", "noms": ["A"], "jusqu_au": "demain"},
+                       {"chambre": "ami", "noms": ["A"], "jusqu_au": "2001-01-01"}):
+        assert client.post("/ha/sejour", json=faux_corps, headers=h).status_code == 422
+    assert sejour(client, h, noms=[])["chemin"] == ""                                    # séjour fini : l'invitation est retirée
+    assert client.get("/api" + autre["chemin"]).status_code == 404
+    assert {(m, ch) for m, ch in faux.demandes if m != "GET"} <= {("POST", "/search/metadata")}
+
+
+def test_l_invite_seul_voit_son_chemin(monde):
+    client, _ = monde
+    h = avec_jeton_ha()
+    jeton = sejour(client, h, noms=["Camille ROUSSEL"])["chemin"].split("/")[-1]
+    r = client.get(f"/api/invite/{jeton}").json()
+    assert r["commun"] is None and r["accueil"] is False and r["invites"] == ["Camille ROUSSEL"]
+    (c,) = r["chacun"]
+    assert [ch["titre"] for ch in c["chapitres"]] == ["0 à 9 ans", "30 à 39 ans"]       # seul : par âge
+    e = c["chapitres"][0]["etapes"][0]
+    assert set(e) == {"cle", "nom", "debut", "fin", "age", "nombre", "phare", "temps_fort"}   # pas la liste des photos
+    assert "immich" not in r and "de_cote" not in c
+    assert client.get(f"/api/invite/{jeton}/vignette/{e['phare']}").status_code == 200
+    assert client.get(f"/api/invite/{jeton}/vignette/{ident('bapteme1')}").status_code == 404   # pas une photo phare
+    assert client.get(f"/api/invite/autre-jeton/vignette/{e['phare']}").status_code == 404
+
+
+def test_deux_invites_le_chemin_commun_puis_celui_de_chacun(monde, c):
+    client, faux = monde
+    h = avec_jeton_ha()
+    jeton = sejour(client, h, chambre="ado", noms=["Camille ROUSSEL", "Hugo MARCHAND"])["chemin"].split("/")[-1]
+    r = client.get(f"/api/invite/{jeton}").json()
+    assert r["commun"]["nom"] == "Camille ROUSSEL et Hugo MARCHAND" and r["chacun"] == []
+    assert [ch["titre"] for ch in r["commun"]["chapitres"]] == ["Années 2010"]          # ensemble : par décennie du calendrier
+    (e,) = r["commun"]["chapitres"][0]["etapes"]
+    assert e["nom"] == "Mariage de Camille et Hugo" and e["nombre"] == 2
+    # Une étape masquée par l'hôte n'est pas montrée ; sans rien en commun, chacun son chemin
+    c.get(f"/api/chemin/{CAMILLE}")
+    marque(c, sorte="masquee", poser=ident("mariage1"))
+    main.ETAT["invites"].clear()
+    r = client.get(f"/api/invite/{jeton}").json()
+    assert r["commun"] is None and [x["nom"] for x in r["chacun"]] == ["Camille ROUSSEL", "Hugo MARCHAND"]
+    assert all(e["nom"] != "Mariage de Camille et Hugo" for ch in r["chacun"][0]["chapitres"] for e in ch["etapes"])
+
+
+def test_personne_trouvee_le_mot_d_accueil(monde):
+    client, _ = monde
+    h = avec_jeton_ha()
+    r = sejour(client, h, noms=["Personne INCONNUE"])
+    assert r["trouves"] == [] and r["chemin"]
+    inv = client.get("/api" + r["chemin"]).json()
+    assert inv == {"invites": ["Personne INCONNUE"], "commun": None, "chacun": [], "accueil": True}
+
+
+def test_invitation_expiree(monde):
+    client, _ = monde
+    h = avec_jeton_ha()
+    chemin = sejour(client, h, noms=["Camille ROUSSEL"])["chemin"]
+    main.ETAT["base"]._c.execute("UPDATE invites SET expire = '2000-01-01T00:00:00'")
+    main.ETAT["base"]._c.commit()
+    main.ETAT["invites"].clear()
+    assert client.get("/api" + chemin).status_code == 404
+
+
 def test_deconnexion(c):
     assert c.post("/api/deconnexion").status_code == 200
     assert c.get("/api/personnes").status_code == 401

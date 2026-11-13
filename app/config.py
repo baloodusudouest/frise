@@ -20,6 +20,7 @@ class Config:
     immich_port: int = 0             # port d'Immich sur le NAS : sans adresse réglée, le lien vise le même hôte que Sillage
     carnet_url: str = ""             # adresse de carnet vue depuis la stack ; avec le jeton, la liste vient de carnet
     carnet_jeton: str = ""           # le même jeton que CARNET_JETON_SILLAGE côté carnet ; vide : personnes d'Immich
+    jeton_ha: str = ""               # 0.5 : jeton de Home Assistant pour /ha/sejour ; vide : adresse fermée
     muets: tuple[str, ...] = ()      # noms de dossier qui ne disent rien, en plus de la liste par défaut
     attente_connexion: bool = True   # délai anti-essais ; coupé dans les tests
 
@@ -41,6 +42,7 @@ def charger() -> Config:
         immich_port=int(os.environ.get("SILLAGE_IMMICH_PORT") or 0) if (os.environ.get("SILLAGE_IMMICH_PORT") or "0").strip().isdigit() else 0,
         carnet_url=os.environ.get("SILLAGE_CARNET_URL", "http://carnet:8096").rstrip("/"),
         carnet_jeton=os.environ.get("SILLAGE_CARNET_JETON", "").strip(),
+        jeton_ha=os.environ.get("SILLAGE_JETON_HA", "").strip(),
         muets=tuple(m.strip() for m in os.environ.get("SILLAGE_DOSSIERS_MUETS", "").split(",") if m.strip()),
         mots=tuple(m.strip().lower() for m in os.environ.get("SILLAGE_MOTS", "").split(",") if m.strip()),
     )

@@ -39,7 +39,7 @@ def vie() -> FauxImmich:
         + serie("communion", "1999-05-16", 7, "1999/1999-05-16 Communion")
         + serie("diplome", "2009-06-30", 3, "2009/2009-06-30 Remise des diplômes")
         + serie("rando", "2014-08-11", 5)
-        + serie("mariage", "2019-06-15", 40)
+        + [dict(x, aussi=[HUGO]) for x in serie("mariage", "2019-06-15", 40)]
         + serie("anniv", "2022-03-14", 8, "2022/2022-03-14 Anniversaire 35 ans")
         + [photo("trop-tot", "1975-01-01T10:00:00")])
     faux.photos[CAMILLE][10 + 4]["type"] = "VIDEO"
@@ -63,8 +63,28 @@ def main_() -> None:
     (racine / "data").mkdir(parents=True, exist_ok=True)
     cfg = Config(password=MDP, immich_url="http://immich", immich_cle="cle", data=racine / "data",
                  static=Path(__file__).resolve().parents[2] / "app" / "static", immich_adresse="http://photos.exemple",
-                 attente_connexion=False)
+                 attente_connexion=False, jeton_ha="jeton-ha")
     main.ETAT.update(cfg=cfg, immich=Immich("http://immich", "cle", transport=vie().transport()))
+    # 0.5 : trois invitations de démonstration, notées dans invites.json pour les tests d'écran
+    import json
+    import threading
+    import time
+    from datetime import date, timedelta
+
+    def inviter():
+        for _ in range(100):
+            try:
+                if httpx.get(f"http://127.0.0.1:{port}/health").status_code == 200:
+                    break
+            except httpx.HTTPError:
+                time.sleep(0.1)
+        fin, h = (date.today() + timedelta(days=2)).isoformat(), {"Authorization": "Bearer jeton-ha"}
+        jetons = {}
+        for chambre, noms in (("seule", ["Camille ROUSSEL"]), ("couple", ["Camille ROUSSEL", "Hugo MARCHAND"]), ("inconnu", ["Personne INCONNUE"])):
+            r = httpx.post(f"http://127.0.0.1:{port}/ha/sejour", headers=h, json={"chambre": chambre, "noms": noms, "jusqu_au": fin})
+            jetons[chambre] = r.json()["chemin"]
+        (racine / "invites.json").write_text(json.dumps(jetons))
+    threading.Thread(target=inviter, daemon=True).start()
     uvicorn.run(main.app, host="127.0.0.1", port=port, log_level="warning")
 
 

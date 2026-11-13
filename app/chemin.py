@@ -118,8 +118,9 @@ def _plus_frequent(noms: list[str]) -> str:
 
 def calculer(personne: dict, photos: Iterable[dict], noms_d_albums: Callable[[list[str]], dict[str, str]],
              mots: tuple[str, ...] = (), marques: dict[str, dict[str, str]] | None = None,
-             muets: tuple[str, ...] = ()) -> dict:
-    """Le chemin complet. `noms_d_albums` reçoit des identifiants de photos et rend, pour celles qui sont dans un
+             muets: tuple[str, ...] = (), decennies: bool = False) -> dict:
+    """Le chemin complet. `decennies` : chapitres par décennie du calendrier (« Années 1990 ») au lieu de l'âge,
+    pour le chemin commun de plusieurs personnes. `noms_d_albums` reçoit des identifiants de photos et rend, pour celles qui sont dans un
     album, le nom de cet album. `marques` : les corrections faites à la main, par empreinte de fichier."""
     mots = tuple(_plat(m) for m in (mots or MOTS))
     marques = marques or {}
@@ -160,7 +161,9 @@ def calculer(personne: dict, photos: Iterable[dict], noms_d_albums: Callable[[li
         propose = _plus_frequent([albums.get(i, "") for i in temoins[id(e)]]) or nom_du_dossier(e["phare"], muets)
         nom = majuscule(e["titre"] or propose)
         ans = age(naissance, debut) if naissance else None
-        if ans is None:
+        if decennies:
+            cle, titre = f"annees-{debut.year // 10 * 10}", f"Années {debut.year // 10 * 10}"
+        elif ans is None:
             cle, titre = str(debut.year), str(debut.year)
         else:
             dizaine = ans // 10 * 10

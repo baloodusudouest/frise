@@ -6,13 +6,14 @@ Routes : /health (publique), /api/session, /api/connexion, /api/deconnexion, /ap
 from __future__ import annotations
 
 import asyncio
+import hmac
 import logging
 import re
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
-from datetime import date
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import httpx
@@ -51,7 +52,7 @@ async def cycle(app: FastAPI):
     cfg.data.mkdir(parents=True, exist_ok=True)
     ETAT.setdefault("immich", Immich(cfg.immich_url, cfg.immich_cle))
     ETAT.update(cfg=cfg, sessions=Sessions(APPLI, cfg.password, _lire_generation(cfg)),
-                personnes=None, lues={}, albums={}, connues={}, derniere_lecture=None,
+                personnes=None, lues={}, albums={}, connues={}, derniere_lecture=None, toutes=None, invites={},
                 base=Base(cfg.data / "sillage.db"))
     yield
     ETAT["base"].fermer()
@@ -63,11 +64,16 @@ app = FastAPI(title=APPLI, version=__version__, lifespan=cycle, docs_url=None, r
 @app.middleware("http")
 async def garde(request: Request, appel):
     chemin = request.url.path
-    if chemin.startswith("/api/") and chemin not in PUBLIQUES \
+    if chemin.startswith("/ha/"):
+        # 0.5 : Home Assistant prépare les invitations des chambres, avec son propre jeton
+        jeton = ETAT["cfg"].jeton_ha
+        if not jeton or not hmac.compare_digest(request.headers.get("authorization", ""), f"Bearer {jeton}"):
+            return JSONResponse({"detail": "Jeton manquant ou invalide."}, status_code=401)
+    elif chemin.startswith("/api/") and chemin not in PUBLIQUES and not chemin.startswith("/api/invite/") \
             and not ETAT["sessions"].connecte(request.cookies):
         return JSONResponse({"detail": "Connexion nécessaire."}, status_code=401)
     reponse = await appel(request)
-    if chemin.startswith("/api/") and not chemin.startswith(IMAGES):
+    if chemin.startswith(("/api/", "/ha/")) and not chemin.startswith(IMAGES) and "/vignette/" not in chemin:
         reponse.headers["Cache-Control"] = "no-store"
     return reponse
 
@@ -248,6 +254,121 @@ def garder_recit(personne: str, corps: dict = Body(...)):
         raise HTTPException(422, "Texte refusé.")
     ETAT["base"].garder_recit(personne, texte)
     return recit(personne)
+
+
+# ================================================================ invités des chambres (0.5)
+
+def _toutes() -> list[dict]:
+    """Toutes les personnes nommées d'Immich (masquées comprises), gardées dix minutes : pour retrouver un invité."""
+    garde_ = ETAT["toutes"]
+    if not garde_ or time.monotonic() - garde_[0] > MEMOIRE:
+        garde_ = (time.monotonic(), [p for p in ETAT["immich"].personnes() if (p.get("name") or "").strip()])
+        ETAT["toutes"] = garde_
+    return garde_[1]
+
+
+def _trouver(nom: str) -> dict | None:
+    """La personne d'Immich qui porte exactement ce nom (comme l'intégration des chambres : à l'identique,
+    puis sans accents ni majuscules). Deux personnes du même nom : aucune, on ne devine pas."""
+    import unicodedata
+    voulu = unicodedata.normalize("NFC", nom.strip())
+    for egal in (lambda p: unicodedata.normalize("NFC", p["name"].strip()) == voulu,
+                 lambda p: calcul._plat(p["name"].strip()) == calcul._plat(voulu)):
+        trouves = [p for p in _toutes() if egal(p)]
+        if len(trouves) == 1:
+            return trouves[0]
+        if len(trouves) > 1:
+            return None
+    return None
+
+
+@app.post("/ha/sejour")
+def sejour(corps: dict = Body(...)):
+    """Home Assistant prépare l'invitation d'une chambre pour son séjour : les noms des invités, le dernier jour.
+    Rend le chemin de la page à afficher (/invite/<jeton>), valable jusqu'au lendemain midi. Sans nom : l'invitation
+    de la chambre est retirée. Rien n'est écrit dans Immich."""
+    chambre = str(corps.get("chambre", "")).strip()[:40]
+    if not chambre:
+        raise HTTPException(422, "Chambre manquante.")
+    noms = [str(n).strip() for n in (corps.get("noms") or []) if str(n).strip()][:4]
+    if not noms:
+        ETAT["base"].retirer_invites(chambre)
+        return {"chemin": "", "trouves": [], "manquants": [], "expire": None}
+    try:
+        dernier = date.fromisoformat(str(corps.get("jusqu_au", ""))[:10])
+    except ValueError:
+        raise HTTPException(422, "Date de fin illisible (AAAA-MM-JJ).")
+    if not date.today() <= dernier <= date.today() + timedelta(days=400):
+        raise HTTPException(422, "Date de fin hors du séjour possible.")
+    expire = datetime.combine(dernier + timedelta(days=1), datetime.min.time()).replace(hour=12).isoformat(timespec="seconds")
+    trouves, manquants = [], []
+    for n in noms:
+        p = _trouver(n)
+        (trouves.append({"id": p["id"], "nom": n}) if p else manquants.append(n))
+    jeton = ETAT["base"].poser_invite(chambre, trouves or [{"id": "", "nom": n} for n in noms], expire)
+    ETAT["invites"].pop(jeton, None)
+    return {"chemin": f"/invite/{jeton}", "trouves": [t["nom"] for t in trouves], "manquants": manquants, "expire": expire}
+
+
+def _pour_invite(c: dict) -> dict:
+    """Ce qu'un invité voit d'un chemin : les étapes visibles, la photo phare de chacune. Ni corrections,
+    ni photos mises de côté, ni lien vers Immich."""
+    chapitres = []
+    for ch in c["chapitres"]:
+        etapes = [{k: e[k] for k in ("cle", "nom", "debut", "fin", "age", "nombre", "phare", "temps_fort")}
+                  for e in ch["etapes"] if not e["masquee"]]
+        if etapes:
+            chapitres.append({"cle": ch["cle"], "titre": ch["titre"], "etapes": etapes})
+    return {"nom": c["personne"]["nom"], "chapitres": chapitres, "etapes": sum(len(ch["etapes"]) for ch in chapitres)}
+
+
+def _invitation(jeton: str) -> dict:
+    inv = ETAT["base"].invite(jeton)
+    if not inv:
+        raise HTTPException(404, "Cette invitation n'existe pas ou a expiré.")
+    garde_ = ETAT["invites"].get(jeton)
+    if garde_ and time.monotonic() - garde_[0] < MEMOIRE:
+        return garde_[1]
+    gens = [p for p in inv["personnes"] if p["id"]]
+    fiches = {p["id"]: p for p in _toutes()}
+    lire_marques = ETAT["base"].marques
+    cfg = ETAT["cfg"]
+
+    def seul(g):
+        fiche = {**fiches.get(g["id"], {"id": g["id"]}), "name": g["nom"]}
+        return calcul.calculer(fiche, ETAT["immich"].photos_de(g["id"]), _noms_d_albums, cfg.mots, lire_marques(g["id"]), cfg.muets)
+
+    commun, chacun = None, []
+    if len(gens) > 1:
+        marques: dict = {}
+        for g in gens:
+            for empreinte, m in lire_marques(g["id"]).items():
+                marques.setdefault(empreinte, {}).update(m)
+        noms = [g["nom"] for g in gens]
+        fiche = {"id": gens[0]["id"], "name": ", ".join(noms[:-1]) + " et " + noms[-1]}
+        c = _pour_invite(calcul.calculer(fiche, ETAT["immich"].photos_ensemble([g["id"] for g in gens]), _noms_d_albums,
+                                          cfg.mots, marques, cfg.muets, decennies=True))
+        commun = c if c["etapes"] else None
+    if commun is None:
+        chacun = [c for c in (_pour_invite(seul(g)) for g in gens) if c["etapes"]]
+    resultat = {"invites": [p["nom"] for p in inv["personnes"]], "commun": commun, "chacun": chacun,
+                "accueil": commun is None and not chacun}
+    phares = {e["phare"] for c in ([commun] if commun else []) + chacun for ch in c["chapitres"] for e in ch["etapes"]}
+    ETAT["invites"][jeton] = (time.monotonic(), {**resultat, "_phares": phares})
+    return ETAT["invites"][jeton][1]
+
+
+@app.get("/api/invite/{jeton}")
+def invitation(jeton: str):
+    return {k: v for k, v in _invitation(jeton).items() if not k.startswith("_")}
+
+
+@app.get("/api/invite/{jeton}/vignette/{photo}")
+def vignette_invite(jeton: str, photo: str):
+    """Seules les photos phares du chemin de l'invitation sont servies."""
+    if not UUID.match(photo) or photo not in _invitation(jeton)["_phares"]:
+        raise HTTPException(404, "Photo inconnue de cette invitation.")
+    return _image(*ETAT["immich"].image(f"/assets/{photo}/thumbnail", "la lecture d'une image", size="preview"))
 
 
 # ================================================================ images (derrière la session)

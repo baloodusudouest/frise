@@ -45,8 +45,8 @@ class FauxImmich:
                 photo("bapteme2", "1987-06-07T15:00:00", "1987/1987-06-07 Baptême de Camille", visage=0.4),
                 photo("bapteme3", "1987-06-08T09:00:00", "1987/1987-06-07 Baptême de Camille", type="VIDEO"),
                 photo("plage", "1995-07-20T09:00:00"),
-                photo("mariage1", "2019-06-15T14:00:00", visage=0.2),
-                photo("mariage2", "2019-06-16T01:00:00", visage=0.3),
+                photo("mariage1", "2019-06-15T14:00:00", visage=0.2, aussi=[HUGO]),
+                photo("mariage2", "2019-06-16T01:00:00", visage=0.3, aussi=[HUGO]),
                 photo("corbeille", "2019-06-15T15:00:00", isTrashed=True),
                 photo("archive", "2019-06-15T16:00:00", isArchived=True),
                 photo("verrou", "2019-06-15T17:00:00", visibility="locked"),
@@ -66,7 +66,11 @@ class FauxImmich:
             return httpx.Response(200, json={"people": self.personnes, "hasNextPage": False})
         if chemin == "/search/metadata" and demande.method == "POST":
             corps = json.loads(demande.content)
-            return httpx.Response(200, json={"assets": {"items": self.photos.get(corps["personIds"][0], []), "nextPage": None}})
+            ids = corps["personIds"]
+            items = self.photos.get(ids[0], [])
+            if len(ids) > 1:                       # comme Immich : les photos où toutes ces personnes sont reconnues
+                items = [p for p in items if set(ids[1:]) <= {x["id"] for x in p["people"]} | set(p.get("aussi", []))]
+            return httpx.Response(200, json={"assets": {"items": items, "nextPage": None}})
         if chemin == "/albums":
             nom = self.albums.get(demande.url.params.get("assetId"))
             return httpx.Response(200, json=[{"albumName": nom}] if nom else [])

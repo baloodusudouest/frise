@@ -19,12 +19,16 @@ MDP = "essai-essai-essai"
 ECRANS = {"pc": {"width": 1280, "height": 860}, "iphone": {"width": 390, "height": 760}}
 
 
+DOSSIER = {}
+
+
 @pytest.fixture(scope="module")
 def base(tmp_path_factory):
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
         port = s.getsockname()[1]
-    proc = subprocess.Popen([sys.executable, "-m", "tests.interface.serveur", str(tmp_path_factory.mktemp("ui")), str(port)], cwd=RACINE)
+    DOSSIER["ui"] = tmp_path_factory.mktemp("ui")
+    proc = subprocess.Popen([sys.executable, "-m", "tests.interface.serveur", str(DOSSIER["ui"]), str(port)], cwd=RACINE)
     adresse = f"http://127.0.0.1:{port}"
     for _ in range(200):
         try:
@@ -171,5 +175,48 @@ def test_connexion_et_reglages(page):
     page.goto(page.base + "/#/connexion")
     page.get_by_text("Répond, version 3.4.1. 2 personnes nommées.").wait_for()
     page.goto(page.base + "/#/reglages")
-    page.get_by_text("Sillage 0.4.3").wait_for()
+    page.get_by_text("Sillage 0.5.0").wait_for()
+    sans_debordement(page)
+
+
+# ------------------------------------------------------------ 0.5 : la page d'un invité
+
+def invitations():
+    import json
+    racine = Path(DOSSIER["ui"])
+    for _ in range(100):
+        if (racine / "invites.json").exists():
+            return json.loads((racine / "invites.json").read_text())
+        time.sleep(0.1)
+    pytest.fail("Les invitations de démonstration n'ont pas été créées.")
+
+
+def test_050_l_invite_voit_son_chemin_sans_mot_de_passe(page):
+    jetons = invitations()
+    page.context.clear_cookies()                                                        # pas de session : l'invité n'a pas le mot de passe
+    page.goto(page.base + jetons["seule"])
+    page.get_by_text("Votre chemin", exact=True).wait_for()
+    assert page.locator("h1").inner_text() == "Camille ROUSSEL"
+    assert page.locator("nav[aria-label='Sections']").count() == 0                       # ni navigation, ni corrections, ni Immich
+    assert page.get_by_role("button", name="Corriger l'étape").count() == 0 and page.get_by_text("Immich").count() == 0
+    assert page.locator(".etape").count() == 8                                          # les temps forts d'abord
+    page.get_by_role("button", name="Tout", exact=True).click()
+    assert page.locator(".etape").count() == 11
+    for src in page.locator(".etape img").evaluate_all("els => els.slice(0, 3).map(e => e.src)"):
+        assert page.request.get(src).status == 200                                       # les photos phares passent par le jeton
+    sans_debordement(page)
+
+
+def test_050_deux_invites_le_chemin_commun(page):
+    jetons = invitations()
+    page.context.clear_cookies()
+    page.goto(page.base + jetons["couple"])
+    page.get_by_text("Votre chemin ensemble").wait_for()
+    assert page.locator("h1").inner_text() == "Camille ROUSSEL et Hugo MARCHAND"
+    assert [t.strip() for t in page.locator(".chapitre").all_inner_texts()] == ["Années 2010"]
+    assert "Mariage de Camille et Hugo" in page.locator(".etape").first.inner_text()
+    page.goto(page.base + jetons["inconnu"])
+    page.get_by_text("Pas encore de souvenirs ici").wait_for()
+    page.goto(page.base + "/invite/jeton-inconnu")
+    page.get_by_text("n'est plus valable").wait_for()
     sans_debordement(page)

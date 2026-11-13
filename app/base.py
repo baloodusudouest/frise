@@ -4,6 +4,8 @@ Une correction est rattachée à l'empreinte du fichier, pas à l'identifiant de
 l'identifiant change quand la photo est renvoyée (migration), l'empreinte non."""
 from __future__ import annotations
 
+import json
+import secrets
 import sqlite3
 import threading
 from datetime import datetime
@@ -22,6 +24,8 @@ class Base:
                                                valeur TEXT NOT NULL DEFAULT '', le TEXT NOT NULL,
                                                PRIMARY KEY (personne, empreinte, sorte));
             CREATE TABLE IF NOT EXISTS recits (personne TEXT PRIMARY KEY, texte TEXT NOT NULL, le TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS invites (jeton TEXT PRIMARY KEY, chambre TEXT NOT NULL, personnes TEXT NOT NULL,
+                                                expire TEXT NOT NULL, cree_le TEXT NOT NULL);
         """)
 
     def fermer(self) -> None:
@@ -56,3 +60,30 @@ class Base:
             else:
                 self._c.execute("INSERT OR REPLACE INTO recits VALUES (?, ?, ?)",
                                 (personne, texte, datetime.now().isoformat(timespec="seconds")))
+
+    # ------------------------------------------------------------ 0.5 : invités des chambres
+    def invite(self, jeton: str) -> dict | None:
+        """L'invitation de ce jeton, si elle n'a pas expiré : {chambre, personnes: [{id, nom}], expire}."""
+        with self._verrou:
+            l = self._c.execute("SELECT * FROM invites WHERE jeton = ? AND expire > ?",
+                                (jeton, datetime.now().isoformat(timespec="seconds"))).fetchone()
+        return {"chambre": l["chambre"], "personnes": json.loads(l["personnes"]), "expire": l["expire"]} if l else None
+
+    def poser_invite(self, chambre: str, personnes: list[dict], expire: str) -> str:
+        """Une invitation par chambre : la même si rien n'a changé, sinon une nouvelle (l'ancienne ne marche plus)."""
+        corps = json.dumps(personnes, ensure_ascii=False, sort_keys=True)
+        maintenant = datetime.now().isoformat(timespec="seconds")
+        with self._verrou, self._c:
+            self._c.execute("DELETE FROM invites WHERE expire <= ?", (maintenant,))
+            l = self._c.execute("SELECT jeton FROM invites WHERE chambre = ? AND personnes = ? AND expire = ?",
+                                (chambre, corps, expire)).fetchone()
+            if l:
+                return l["jeton"]
+            self._c.execute("DELETE FROM invites WHERE chambre = ?", (chambre,))
+            jeton = secrets.token_urlsafe(24)
+            self._c.execute("INSERT INTO invites VALUES (?, ?, ?, ?, ?)", (jeton, chambre, corps, expire, maintenant))
+            return jeton
+
+    def retirer_invites(self, chambre: str) -> None:
+        with self._verrou, self._c:
+            self._c.execute("DELETE FROM invites WHERE chambre = ?", (chambre,))

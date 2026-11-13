@@ -50,10 +50,14 @@ class Immich:
 
     def photos_de(self, personne: str):
         """Toutes les photos et vidéos visibles où la personne est reconnue."""
+        yield from self.photos_ensemble([personne])
+
+    def photos_ensemble(self, personnes: list[str]):
+        """Les photos où toutes ces personnes sont reconnues ensemble (Immich croise les personnes demandées)."""
         page = 1
         while page:
             r = self._lire("/search/metadata", "la lecture des photos d'une personne",
-                           corps={"personIds": [personne], "size": 1000, "page": page, "withPeople": True}).json()
+                           corps={"personIds": list(personnes), "size": 1000, "page": page, "withPeople": True}).json()
             yield from r["assets"]["items"]
             suite = r["assets"].get("nextPage")
             page = int(suite) if suite else 0
