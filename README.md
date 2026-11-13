@@ -2,7 +2,7 @@
 
 Le chemin de vie d'une personne, lu dans Immich : ses photos rangées en étapes, les étapes en chapitres d'âge. Ancien nom : Frise.
 
-**État : 0.2.0, première version, en lecture seule.** Voir [`REPRISE.md`](REPRISE.md) et [`docs/dossier.md`](docs/dossier.md).
+**État : 0.3.0. Sillage ne fait que lire Immich ; les corrections sont gardées chez lui.** Voir [`REPRISE.md`](REPRISE.md) et [`docs/dossier.md`](docs/dossier.md).
 
 ## Ce que fait Sillage
 
@@ -10,6 +10,8 @@ Le chemin de vie d'une personne, lu dans Immich : ses photos rangées en étapes
 - Le chemin d'une personne : une étape réunit ses photos prises à moins de deux jours les unes des autres ; elle porte le nom de l'album de sa photo phare, sinon celui de son dossier, sinon sa date. Chapitres par décennie d'âge (par année sans date de naissance).
 - « Temps forts » (étapes dont le nom contient un mot de la liste) ou « Tout ».
 - Une étape ouverte : sa galerie, chaque photo en grand, un lien vers Immich.
+- Corrections à la main : nommer ou masquer une étape, choisir la photo phare, retirer une photo, « ce n'est pas cette personne ».
+- « Raconter » : le récit du chemin, proposé par gabarit, à relire et corriger.
 - Les images passent par Sillage, derrière le mot de passe. Ce qui est à la corbeille, archivé ou verrouillé dans Immich n'est pas montré.
 
 Sillage n'écrit rien dans Immich : un test le vérifie.

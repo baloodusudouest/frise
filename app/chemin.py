@@ -45,12 +45,21 @@ def age(naissance: date, le: date) -> int:
     return le.year - naissance.year - ((le.month, le.day) < (naissance.month, naissance.day))
 
 
-def nom_du_dossier(photo: dict) -> str:
-    """Le nom du dossier qui porte la photo, sans sa date de tête ; vide s'il ne dit rien."""
+MUETS = ("dcim", "camera", "camera roll", "pellicule", "photos", "images", "pictures", "upload", "library", "import",
+         "mobilebackup", "whatsapp images", "screenshots", "captures", "divers", "vrac", "nouveau dossier", "new folder")
+
+
+def nom_du_dossier(photo: dict, muets: tuple[str, ...] = ()) -> str:
+    """Le nom du dossier qui porte la photo, sans sa date de tête ; vide s'il ne dit rien
+    (une date seule, un nom d'appareil, un dossier fourre-tout)."""
     morceaux = (photo.get("originalPath") or "").replace("\\", "/").split("/")
     if len(morceaux) < 2:
         return ""
-    nom = _DATE_EN_TETE.sub("", morceaux[-2]).strip(" -_")
+    brut = morceaux[-2].strip()
+    nom = _DATE_EN_TETE.sub("", brut).strip(" -_")
+    sourds = {_plat(m) for m in MUETS + tuple(muets)}
+    if re.fullmatch(r"\d{3}[A-Za-z_]{3,8}", brut) or _plat(brut) in sourds or _plat(nom) in sourds:   # « 100APPLE », « DCIM »
+        return ""
     return nom if re.search(r"[^\W\d_]{3}", nom) else ""
 
 
@@ -82,15 +91,27 @@ def grouper(photos: Iterable[tuple[datetime, dict]]) -> list[list[tuple[datetime
     return groupes
 
 
+def _plus_frequent(noms: list[str]) -> str:
+    noms = [n for n in noms if n]
+    return max(noms, key=lambda n: (noms.count(n), -noms.index(n))) if noms else ""
+
+
 def calculer(personne: dict, photos: Iterable[dict], noms_d_albums: Callable[[list[str]], dict[str, str]],
-             mots: tuple[str, ...] = ()) -> dict:
-    """Le chemin complet. `noms_d_albums` reçoit des identifiants de photos phares et rend, pour
-    celles qui sont dans un album, le nom de cet album."""
+             mots: tuple[str, ...] = (), marques: dict[str, dict[str, str]] | None = None,
+             muets: tuple[str, ...] = ()) -> dict:
+    """Le chemin complet. `noms_d_albums` reçoit des identifiants de photos et rend, pour celles qui sont dans un
+    album, le nom de cet album. `marques` : les corrections faites à la main, par empreinte de fichier."""
     mots = tuple(_plat(m) for m in (mots or MOTS))
+    marques = marques or {}
+    marque = lambda p: marques.get(p.get("checksum") or "", {})
     naissance = jour(personne.get("birthDate"))
-    datees, sans_date, avant = [], 0, 0
+    datees, sans_date, avant, de_cote = [], 0, 0, []
     for p in photos:
         if not visible(p):
+            continue
+        m = marque(p)
+        if "pas_elle" in m or "retiree" in m:
+            de_cote.append({"id": p["id"], "sorte": "pas_elle" if "pas_elle" in m else "retiree", "video": p.get("type") == "VIDEO"})
             continue
         quand = date_de(p)
         if quand is None:
@@ -102,15 +123,22 @@ def calculer(personne: dict, photos: Iterable[dict], noms_d_albums: Callable[[li
 
     etapes = []
     for groupe in grouper(datees):
-        phare = photo_phare([p for _, p in groupe], personne["id"])
-        etapes.append({"debut": groupe[0][0], "fin": groupe[-1][0], "phare": phare,
-                       "photos": [{"id": p["id"], "video": p.get("type") == "VIDEO"} for _, p in groupe]})
-    albums = noms_d_albums([e["phare"]["id"] for e in etapes if len(e["photos"]) > 1])
+        du_groupe = [p for _, p in groupe]
+        choisie = next((p for p in du_groupe if "phare" in marque(p)), None)
+        etapes.append({"debut": groupe[0][0], "fin": groupe[-1][0], "phare": choisie or photo_phare(du_groupe, personne["id"]),
+                       "phare_choisie": choisie is not None, "groupe": du_groupe,
+                       "titre": next((marque(p)["titre"] for p in du_groupe if marque(p).get("titre")), ""),
+                       "masquee": any("masquee" in marque(p) for p in du_groupe)})
+    # Le nom vient de l'album : celui de la photo phare, de la première et de la dernière, le plus fréquent des trois.
+    temoins = {id(e): list(dict.fromkeys(p["id"] for p in (e["phare"], e["groupe"][0], e["groupe"][-1]))) for e in etapes}
+    albums = noms_d_albums([i for e in etapes if not e["titre"] for i in temoins[id(e)]])
 
     chapitres: list[dict] = []
+    masquees = 0
     for e in etapes:
         debut = e["debut"].date()
-        nom = albums.get(e["phare"]["id"]) or nom_du_dossier(e["phare"])
+        propose = _plus_frequent([albums.get(i, "") for i in temoins[id(e)]]) or nom_du_dossier(e["phare"], muets)
+        nom = e["titre"] or propose
         ans = age(naissance, debut) if naissance else None
         if ans is None:
             cle, titre = str(debut.year), str(debut.year)
@@ -119,13 +147,16 @@ def calculer(personne: dict, photos: Iterable[dict], noms_d_albums: Callable[[li
             cle, titre = f"age-{dizaine}", f"{dizaine} à {dizaine + 9} ans"
         if not chapitres or chapitres[-1]["cle"] != cle:
             chapitres.append({"cle": cle, "titre": titre, "etapes": []})
+        masquees += e["masquee"]
         chapitres[-1]["etapes"].append({
-            "cle": f"{e['debut']:%Y%m%d%H%M%S}", "nom": nom, "debut": debut.isoformat(), "fin": e["fin"].date().isoformat(),
-            "age": ans, "nombre": len(e["photos"]), "phare": e["phare"]["id"],
-            "temps_fort": bool(nom) and any(m in _plat(nom) for m in mots), "photos": e["photos"]})
+            "cle": f"{e['debut']:%Y%m%d%H%M%S}", "nom": nom, "nom_choisi": bool(e["titre"]), "debut": debut.isoformat(),
+            "fin": e["fin"].date().isoformat(), "age": ans, "nombre": len(e["groupe"]), "phare": e["phare"]["id"],
+            "phare_choisie": e["phare_choisie"], "masquee": e["masquee"],
+            "temps_fort": bool(nom) and (bool(e["titre"]) or any(m in _plat(nom) for m in mots)),
+            "photos": [{"id": p["id"], "video": p.get("type") == "VIDEO"} for p in e["groupe"]]})
     return {
         "personne": {"id": personne["id"], "nom": personne.get("name") or "", "naissance": naissance.isoformat() if naissance else None},
         "chapitres": chapitres,
-        "etapes": sum(len(c["etapes"]) for c in chapitres), "photos": len(datees),
-        "ecartees": {"avant_naissance": avant, "sans_date": sans_date},
+        "etapes": sum(len(c["etapes"]) for c in chapitres) - masquees, "masquees": masquees, "photos": len(datees),
+        "ecartees": {"avant_naissance": avant, "sans_date": sans_date}, "de_cote": de_cote,
     }

@@ -71,7 +71,8 @@ def test_le_chemin_de_camille(c):
 def test_ni_corbeille_ni_archive_ni_verrou(c):
     r = c.get(f"/api/chemin/{CAMILLE}").json()
     montrees = {p["id"] for e in etapes(r) for p in e["photos"]}
-    for cachee in ("corbeille", "archive", "verrou", "avant"):
+    assert ident("avant") not in montrees
+    for cachee in ("corbeille", "archive", "verrou"):
         assert ident(cachee) not in montrees
         assert c.get(f"/api/vignette/{ident(cachee)}").status_code == 404
 
@@ -134,6 +135,94 @@ def test_immich_qui_refuse_ou_se_tait(monde, c):
     faux.refuse = 0
     s = c.get("/api/services").json()["immich"]
     assert (s["repond"], s["version"], s["personnes"]) == (True, "3.4.1", 2)
+
+
+def marque(c, **corps):
+    r = c.post(f"/api/chemin/{CAMILLE}/marque", json=corps)
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def test_corrections(monde, c):
+    _, faux = monde
+    c.get(f"/api/chemin/{CAMILLE}")
+    lus = len(faux.demandes)
+    # Nommer une étape : elle devient un temps fort, et son nom n'est plus cherché dans les albums
+    r = marque(c, sorte="titre", poser=ident("plage"), valeur="Été à la mer")
+    plage = etapes(r)[1]
+    assert (plage["nom"], plage["nom_choisi"], plage["temps_fort"]) == ("Été à la mer", True, True)
+    assert marque(c, sorte="titre", effacer=[ident("plage")])["chapitres"][0]["etapes"][1]["nom"] == ""
+    # Choisir la photo phare
+    r = marque(c, sorte="phare", effacer=[ident("bapteme1"), ident("bapteme2"), ident("bapteme3")], poser=ident("bapteme1"))
+    assert (etapes(r)[0]["phare"], etapes(r)[0]["phare_choisie"]) == (ident("bapteme1"), True)
+    # « Ce n'est pas elle » et « retirer » : la photo quitte le chemin, on peut la remettre
+    r = marque(c, sorte="pas_elle", poser=ident("mariage1"))
+    assert etapes(r)[2]["nombre"] == 1 and r["de_cote"] == [{"id": ident("mariage1"), "sorte": "pas_elle", "video": False}]
+    r = marque(c, sorte="retiree", poser=ident("bapteme3"))
+    assert etapes(r)[0]["nombre"] == 2 and len(r["de_cote"]) == 2
+    assert c.get(f"/api/vignette/{ident('mariage1')}").status_code == 200           # toujours visible dans « mises de côté »
+    r = marque(c, sorte="pas_elle", effacer=[ident("mariage1")])
+    assert etapes(r)[2]["nombre"] == 2
+    # Masquer une étape : elle reste dans la réponse, marquée, et ne compte plus
+    r = marque(c, sorte="masquee", poser=ident("plage"))
+    assert etapes(r)[1]["masquee"] is True and (r["etapes"], r["masquees"]) == (2, 1)
+    # Rien de tout cela n'a relu les photos ni écrit dans Immich
+    assert not [d for d in faux.demandes[lus:] if d == ("POST", "/search/metadata")]
+    assert {m for m, _ in faux.demandes} <= {"GET", "POST"} and {ch for m, ch in faux.demandes if m == "POST"} == {"/search/metadata"}
+
+
+def test_les_corrections_suivent_l_empreinte(monde, c):
+    """La photo est renvoyée dans Immich (migration) : nouvel identifiant, même fichier. La correction tient."""
+    _, faux = monde
+    c.get(f"/api/chemin/{CAMILLE}")
+    marque(c, sorte="titre", poser=ident("plage"), valeur="Été à la mer")
+    marque(c, sorte="retiree", poser=ident("mariage1"))
+    for p in faux.photos[CAMILLE]:
+        p["id"] = ident("apres-migration-" + p["originalPath"])
+    r = c.get(f"/api/chemin/{CAMILLE}?frais=true").json()
+    assert etapes(r)[1]["nom"] == "Été à la mer" and etapes(r)[2]["nombre"] == 1 and len(r["de_cote"]) == 1
+
+
+def test_corrections_refusees(c):
+    c.get(f"/api/chemin/{CAMILLE}")
+    for corps, code in (({"sorte": "n-importe-quoi", "poser": ident("plage")}, 422), ({"sorte": "retiree"}, 404),
+                        ({"sorte": "retiree", "poser": ident("inconnue")}, 404), ({"sorte": "retiree", "poser": ident("corbeille")}, 404),
+                        ({"sorte": "titre", "poser": ident("plage"), "valeur": "  "}, 422)):
+        assert c.post(f"/api/chemin/{CAMILLE}/marque", json=corps).status_code == code, corps
+    assert c.post(f"/api/chemin/{ident('personne')}/marque", json={"sorte": "retiree", "poser": ident("plage")}).status_code == 404
+
+
+def test_le_nom_vient_de_l_album_le_plus_frequent_puis_du_dossier():
+    photos = [{"id": str(i), "checksum": str(i), "type": "IMAGE", "localDateTime": f"2020-05-0{1 + i // 3}T10:0{i}:00.000Z",
+               "originalPath": f"/p/{dossier}/{i}.jpg", "visibility": "timeline", "people": []}
+              for i, dossier in enumerate(("DCIM", "100APPLE", "2020-05 Fête au jardin", "Pellicule", "Camera", "Divers"))]
+    noms = lambda ids: {"0": "Un album", "5": "Un album", "3": "Autre"}
+    r = calcul.calculer({"id": "x", "name": "X"}, photos, noms)
+    assert [e["nom"] for ch in r["chapitres"] for e in ch["etapes"]] == ["Un album"]
+    r = calcul.calculer({"id": "x", "name": "X"}, photos[:3], lambda ids: {})
+    assert [e["nom"] for ch in r["chapitres"] for e in ch["etapes"]] == [""]         # phare = première image : « DCIM » ne dit rien
+    for muet in ("DCIM", "100APPLE", "Pellicule", "2019", "2020-05-01"):
+        assert calcul.nom_du_dossier({"originalPath": f"/a/{muet}/x.jpg"}) == "", muet
+    assert calcul.nom_du_dossier({"originalPath": "/a/Mon dossier/x.jpg"}, muets=("mon dossier",)) == ""
+
+
+def test_raconter(c):
+    marque_ = lambda **k: marque(c, **k)
+    c.get(f"/api/chemin/{CAMILLE}")
+    r = c.get(f"/api/recit/{CAMILLE}").json()
+    assert r["garde_le"] is None and r["texte"] == r["propose"]
+    assert r["propose"] == (
+        "Camille ROUSSEL\n\nNaissance le 14 mars 1987.\n\n"
+        "0 à 9 ans\nDu 7 au 8 juin 1987, avant un an : Baptême de Camille.\nEt 1 autre moment en photos.\n\n"
+        "30 à 39 ans\nDu 15 au 16 juin 2019, à 32 ans : Mariage de Camille et Hugo.\n")
+    marque_(sorte="masquee", poser=ident("plage"))
+    assert "autre moment" not in c.get(f"/api/recit/{CAMILLE}").json()["propose"]      # une étape masquée ne se raconte pas
+    r = c.put(f"/api/recit/{CAMILLE}", json={"texte": "Mon texte relu."}).json()
+    assert r["texte"] == "Mon texte relu." and r["garde_le"] and r["propose"].startswith("Camille ROUSSEL")
+    assert c.get(f"/api/recit/{CAMILLE}").json()["texte"] == "Mon texte relu."
+    assert c.put(f"/api/recit/{CAMILLE}", json={"texte": None}).json()["garde_le"] is None   # repartir du chemin
+    assert c.put(f"/api/recit/{CAMILLE}", json={"texte": 12}).status_code == 422
+    assert c.put(f"/api/recit/{ident('personne')}", json={"texte": "x"}).status_code == 404
 
 
 def test_deconnexion(c):

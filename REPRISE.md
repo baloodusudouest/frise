@@ -4,24 +4,22 @@ Fichier à lire en premier dans une nouvelle session, et à mettre à jour à ch
 
 ## État (13/11/2026)
 
-- **0.2.0** (13/11/2026) : connexion commune avec l'Anneau — cookie `maison_session` (accepté ; `Sessions.connecte`, `commun_valide` dans `app/auth.py`). Jamais essayée sur la vraie installation.
-- **Version 0.1.0 codée et publiée** (`ghcr.io/baloodusudouest/sillage:latest`, port 8093) : personnes d'Immich, chemin d'une personne, étape ouverte, photo en grand. Lecture seule d'Immich. 16 tests du serveur, 8 d'écran (PC et iPhone), 3 de l'ancienne sonde.
-- **Jamais lancée sur la vraie photothèque.** C'est elle qui sert de sonde : à regarder sur cinq personnes.
-- Dossier ([`docs/dossier.md`](docs/dossier.md)), conseil ([`docs/conseil.md`](docs/conseil.md)), décisions d'après conseil en fin de dossier.
+- **0.3.0** : corrections (`app/base.py`, table `marques` par empreinte ; `POST /api/chemin/{personne}/marque`), noms d'étapes (trois photos témoins, dossiers muets), « Raconter » (`app/recit.py`, `pages/Recit.svelte`), trait animé (`pages/Chemin.svelte`). 25 tests du serveur, 12 d'écran.
+- **0.2.0** : connexion commune avec l'Anneau. **0.1.0** : personnes d'Immich, chemin, étape ouverte.
+- Vue sur la vraie photothèque par l'utilisateur (0.2.0). Ses retours : **les noms d'étapes** et **la photo phare ou des photos fausses**, sans détail ni capture. La 0.3.0 y répond par les corrections à la main et par un meilleur choix du nom ; **rien de cela n'a été vérifié sur ses photos**.
 
 ## À vérifier sur la vraie installation
 
-- La clé d'API (droits `person.read`, `asset.read`, `asset.view`, `album.read`) suffit-elle ? Un refus s'affiche dans « Connexion ».
-- La recherche rend-elle bien les visages (`withPeople`) ? Sinon la photo phare est la première image du groupe.
-- Le temps de lecture d'une personne très photographiée, et celui des noms d'albums (une lecture par étape de plus d'une photo, huit de front, gardées dix minutes).
-- L'écart de deux jours donne-t-il des étapes qui ressemblent à des évènements ?
+- Les noms : sortent-ils mieux ? Quels dossiers faut-il ajouter à `SILLAGE_DOSSIERS_MUETS` ?
+- La photo phare : si Immich ne rend pas les visages dans la recherche (`withPeople`), c'est la première image du groupe. À regarder avant de retoucher le choix automatique.
+- Le temps de lecture : jusqu'à trois lectures d'album par étape (huit de front, gardées dix minutes).
+- Le trait animé sur un vrai iPhone.
 
-## Pas encore fait (dans l'ordre du plan)
+## Pas encore fait
 
-1. Personnes venues de carnet (adresse à jeton dans carnet), lien dans la fiche.
-2. Corrections gardées dans Sillage : « ce n'est pas elle », « retirer cette photo », « masquer cette étape », titre modifiable, choix de la photo phare ; base SQLite, réglages rattachés à l'empreinte.
-3. « Raconter », puis l'animation du trait.
-4. Scans datés « vers … », date de fin, tuile « À vérifier », cache des vignettes sur disque, lecture des vidéos.
+1. Personnes venues de carnet (adresse à jeton dans carnet), lien dans la fiche. **En cours.**
+2. Scans datés « vers … », date de fin, tuile « À vérifier », cache des vignettes sur disque, lecture des vidéos.
+3. Un récit plus vivant : refusé pour l'instant (gabarit choisi, rien d'inventé).
 
 ## Décisions à ne pas rouvrir sans raison
 

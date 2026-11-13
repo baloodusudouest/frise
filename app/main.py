@@ -1,7 +1,7 @@
 """Sillage : le chemin de vie d'une personne, lu dans Immich. Lecture seule.
 
 Routes : /health (publique), /api/session, /api/connexion, /api/deconnexion, /api/personnes,
-/api/chemin/{personne}, /api/portrait/{personne}, /api/vignette/{photo}, /api/services, puis l'interface.
+/api/chemin/{personne} (et /marque), /api/recit/{personne}, /api/portrait/{personne}, /api/vignette/{photo}, /api/services, puis l'interface.
 """
 from __future__ import annotations
 
@@ -17,7 +17,8 @@ from pathlib import Path
 from fastapi import Body, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 
-from . import __version__, chemin as calcul
+from . import __version__, chemin as calcul, recit as recits
+from .base import SORTES, Base
 from .auth import COMMUN, DUREE, Sessions
 from .config import APPLI, Config, charger
 from .immich import ErreurImmich, Immich
@@ -47,8 +48,10 @@ async def cycle(app: FastAPI):
     cfg.data.mkdir(parents=True, exist_ok=True)
     ETAT.setdefault("immich", Immich(cfg.immich_url, cfg.immich_cle))
     ETAT.update(cfg=cfg, sessions=Sessions(APPLI, cfg.password, _lire_generation(cfg)),
-                personnes=None, chemins={}, albums={}, connues=set(), derniere_lecture=None)
+                personnes=None, lues={}, albums={}, connues={}, derniere_lecture=None,
+                base=Base(cfg.data / "sillage.db"))
     yield
+    ETAT["base"].fermer()
 
 
 app = FastAPI(title=APPLI, version=__version__, lifespan=cycle, docs_url=None, redoc_url=None)
@@ -145,22 +148,69 @@ def _noms_d_albums(photos: list[str]) -> dict[str, str]:
     return {p: connus[p] for p in photos if connus.get(p)}
 
 
-@app.get("/api/chemin/{personne}")
-def chemin(personne: str, frais: bool = False):
+def _chemin(personne: str, frais: bool = False) -> dict:
+    """Le chemin d'une personne. Les photos lues dans Immich sont gardées dix minutes : une correction
+    recalcule le chemin sans rien relire."""
     fiche = _personnes().get(personne)
     if not fiche:
         raise HTTPException(404, "Personne inconnue de Sillage.")
-    garde_ = ETAT["chemins"].get(personne)
-    if garde_ and not frais and time.monotonic() - garde_[0] < MEMOIRE:
-        return garde_[1]
-    if frais:
-        ETAT["albums"].clear()
-    resultat = calcul.calculer(fiche, ETAT["immich"].photos_de(personne), _noms_d_albums, ETAT["cfg"].mots)
+    garde_ = ETAT["lues"].get(personne)
+    if not garde_ or frais or time.monotonic() - garde_[0] > MEMOIRE:
+        if frais:
+            ETAT["albums"].clear()
+        garde_ = (time.monotonic(), list(ETAT["immich"].photos_de(personne)))
+        with VERROU:
+            ETAT["lues"][personne] = garde_
+            ETAT["connues"].update({p["id"]: p.get("checksum") or "" for p in garde_[1] if calcul.visible(p)})
+    resultat = calcul.calculer(fiche, garde_[1], _noms_d_albums, ETAT["cfg"].mots, ETAT["base"].marques(personne), ETAT["cfg"].muets)
     resultat["immich"] = ETAT["cfg"].immich_adresse
-    with VERROU:
-        ETAT["connues"].update(p["id"] for c in resultat["chapitres"] for e in c["etapes"] for p in e["photos"])
-        ETAT["chemins"][personne] = (time.monotonic(), resultat)
     return resultat
+
+
+@app.get("/api/chemin/{personne}")
+def chemin(personne: str, frais: bool = False):
+    return _chemin(personne, frais)
+
+
+@app.post("/api/chemin/{personne}/marque")
+def marquer(personne: str, corps: dict = Body(...)):
+    """Une correction : « ce n'est pas elle », retirer une photo, choisir la photo phare, nommer ou masquer une étape.
+    `effacer` : les photos dont on retire la marque ; `poser` : la photo qui la reçoit (aucune : on ne fait que retirer).
+    Rien n'est écrit dans Immich."""
+    if personne not in _personnes():
+        raise HTTPException(404, "Personne inconnue de Sillage.")
+    sorte, valeur = str(corps.get("sorte", "")), str(corps.get("valeur") or "").strip()[:200]
+    if sorte not in SORTES:
+        raise HTTPException(422, "Correction inconnue.")
+    connues = ETAT["connues"]
+    demandees = [str(i) for i in (corps.get("effacer") or [])] + ([str(corps["poser"])] if corps.get("poser") else [])
+    if not demandees or any(not connues.get(i) for i in demandees):
+        raise HTTPException(404, "Photo inconnue de Sillage : relis le chemin.")
+    if sorte == "titre" and corps.get("poser") and not valeur:
+        raise HTTPException(422, "Le nom est vide.")
+    ETAT["base"].marquer(personne, sorte, [connues[str(i)] for i in (corps.get("effacer") or [])],
+                         connues[str(corps["poser"])] if corps.get("poser") else None, valeur)
+    return _chemin(personne)
+
+
+# ================================================================ raconter
+
+@app.get("/api/recit/{personne}")
+def recit(personne: str):
+    propose = recits.proposer(_chemin(personne))
+    garde_ = ETAT["base"].recit(personne)
+    return {"texte": garde_["texte"] if garde_ else propose, "propose": propose, "garde_le": garde_["le"] if garde_ else None}
+
+
+@app.put("/api/recit/{personne}")
+def garder_recit(personne: str, corps: dict = Body(...)):
+    if personne not in _personnes():
+        raise HTTPException(404, "Personne inconnue de Sillage.")
+    texte = corps.get("texte")
+    if texte is not None and (not isinstance(texte, str) or len(texte) > 100_000):
+        raise HTTPException(422, "Texte refusé.")
+    ETAT["base"].garder_recit(personne, texte)
+    return recit(personne)
 
 
 # ================================================================ images (derrière la session)

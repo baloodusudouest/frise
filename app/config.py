@@ -17,6 +17,7 @@ class Config:
     static: Path
     immich_adresse: str = ""         # adresse d'Immich dans le navigateur (lien « Ouvrir dans Immich »)
     mots: tuple[str, ...] = ()       # mots qui font d'une étape un temps fort ; vide : la liste par défaut
+    muets: tuple[str, ...] = ()      # noms de dossier qui ne disent rien, en plus de la liste par défaut
     attente_connexion: bool = True   # délai anti-essais ; coupé dans les tests
 
 
@@ -34,5 +35,6 @@ def charger() -> Config:
         data=Path(os.environ.get("SILLAGE_DATA", "/data")),
         static=Path(__file__).parent / "static",
         immich_adresse=os.environ.get("SILLAGE_IMMICH_ADRESSE", "").rstrip("/"),
+        muets=tuple(m.strip() for m in os.environ.get("SILLAGE_DOSSIERS_MUETS", "").split(",") if m.strip()),
         mots=tuple(m.strip().lower() for m in os.environ.get("SILLAGE_MOTS", "").split(",") if m.strip()),
     )

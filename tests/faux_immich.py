@@ -19,7 +19,8 @@ CAMILLE, HUGO, ANONYME, CACHEE = ident("camille"), ident("hugo"), ident("anonyme
 
 def photo(nom, quand, dossier="2020/2020-01-01", visage=0.0, **plus):
     p = {"id": ident(nom), "type": "IMAGE", "originalPath": f"/photos/{dossier}/{nom}.jpg",
-         "localDateTime": quand + ".000Z", "isTrashed": False, "isArchived": False, "visibility": "timeline", "people": []}
+         "localDateTime": quand + ".000Z", "isTrashed": False, "isArchived": False, "visibility": "timeline", "people": [],
+         "checksum": "somme-" + nom}
     if visage:
         p["people"] = [{"id": CAMILLE, "faces": [{"imageWidth": 1000, "imageHeight": 1000, "boundingBoxX1": 0,
                                                   "boundingBoxY1": 0, "boundingBoxX2": int(1000 * visage), "boundingBoxY2": 1000}]}]
