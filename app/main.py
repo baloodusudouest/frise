@@ -200,6 +200,7 @@ def _chemin(personne: str, frais: bool = False) -> dict:
             ETAT["connues"].update({p["id"]: p.get("checksum") or "" for p in garde_[1] if calcul.visible(p)})
     resultat = calcul.calculer(fiche, garde_[1], _noms_d_albums, ETAT["cfg"].mots, ETAT["base"].marques(personne), ETAT["cfg"].muets)
     resultat["immich"] = ETAT["cfg"].immich_adresse
+    resultat["immich_port"] = ETAT["cfg"].immich_port
     return resultat
 
 

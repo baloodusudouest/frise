@@ -4,6 +4,7 @@ Fichier à lire en premier dans une nouvelle session, et à mettre à jour à ch
 
 ## État (13/11/2026)
 
+- **0.4.2** : croix de la photo en grand recouverte par le compteur (corrigé, test sur trois hauteurs du bouton) ; « Ouvrir dans Immich » en bouton, adresse déduite de l'hôte et de `SILLAGE_IMMICH_PORT`. **Décision : ce lien, comme les corrections, est réservé au propriétaire ; la vue des invités, quand elle existera, ne les montrera pas.**
 - **0.4.1** : noms d'évènements à la plume (classe `.plume`, police Tangerine embarquée), majuscule d'office (`chemin.majuscule`). Lisibilité à vérifier sur un vrai iPhone.
 - **0.4.0** : personnes de carnet (`_de_carnet`, `_personnes` dans `app/main.py` ; adresse `/sillage/personnes` de carnet 2.15, jeton partagé), Immich en secours. 27 tests du serveur, 12 d'écran. **Jamais essayé contre le vrai carnet.**
 - **0.3.0** : corrections (`app/base.py`, table `marques` par empreinte ; `POST /api/chemin/{personne}/marque`), noms d'étapes (trois photos témoins, dossiers muets), « Raconter » (`app/recit.py`, `pages/Recit.svelte`), trait animé (`pages/Chemin.svelte`). 25 tests du serveur, 12 d'écran.

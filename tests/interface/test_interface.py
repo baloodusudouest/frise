@@ -95,6 +95,13 @@ def test_une_etape_et_ses_photos(page):
     page.get_by_role("button", name="Photo suivante").click()
     assert page.get_by_role("group", name="Photo 1 sur 40").is_visible()
     assert page.get_by_role("link", name="Ouvrir dans Immich").get_attribute("href").startswith("http://photos.exemple/photos/")
+    # La croix se ferme en cliquant en son centre : rien ne la recouvre (le compteur passait dessus)
+    croix = page.get_by_role("button", name="Fermer la photo").bounding_box()
+    assert page.evaluate("([x, y]) => document.elementFromPoint(x, y).closest('button')?.getAttribute('aria-label')",
+                         [croix["x"] + croix["width"] / 2, croix["y"] + croix["height"] / 2]) == "Fermer la photo"
+    for dy in (0.15, 0.5, 0.85):
+        assert page.evaluate("([x, y]) => document.elementFromPoint(x, y).closest('button')?.getAttribute('aria-label')",
+                             [croix["x"] + croix["width"] / 2, croix["y"] + croix["height"] * dy]) == "Fermer la photo"
     sans_debordement(page)
     page.keyboard.press("Escape")
     assert page.locator(".plein").count() == 0 and page.locator(".galerie").is_visible()
@@ -164,5 +171,5 @@ def test_connexion_et_reglages(page):
     page.goto(page.base + "/#/connexion")
     page.get_by_text("Répond, version 3.4.1. 2 personnes nommées.").wait_for()
     page.goto(page.base + "/#/reglages")
-    page.get_by_text("Sillage 0.4.1").wait_for()
+    page.get_by_text("Sillage 0.4.2").wait_for()
     sans_debordement(page)

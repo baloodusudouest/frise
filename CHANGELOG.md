@@ -1,5 +1,10 @@
 # Journal des versions
 
+## 0.4.2 — 13/11/2026
+
+- **La croix d'une photo ouverte en grand se ferme d'un clic au centre.** Le compteur (« 2 / 40 »), remonté en haut à la 0.3.0, passait par-dessus : seul le bas du bouton répondait.
+- **« Ouvrir dans Immich »** devient un bouton, avec les autres gestes de la photo. Sans adresse réglée (`SILLAGE_IMMICH_ADRESSE`), le lien vise le même hôte que Sillage sur le port d'Immich (`SILLAGE_IMMICH_PORT`, en http). Ce lien est un geste du propriétaire : une future vue d'invité ne l'aura pas.
+
 ## 0.4.1 — 13/11/2026
 
 - **Les noms des évènements sont écrits à la plume**, comme sur l'Anneau (même écriture, couleur miel), sur le chemin et en tête de l'étape ouverte. Une étape sans nom garde sa date en caractères droits.

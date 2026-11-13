@@ -8,7 +8,10 @@
   import Star from '@lucide/svelte/icons/star'
   import { ageDit, periode } from '$lib/dates.js'
 
-  let { etape, immich = '', onferme, oncorrige } = $props()
+  let { etape, immich = '', portImmich = 0, onferme, oncorrige } = $props()
+  // Immich dans le navigateur : l'adresse réglée, sinon le même hôte que Sillage sur le port d'Immich (en http).
+  // Ce lien fait partie des gestes de correction : il est pour le propriétaire, pas pour une future vue d'invité.
+  const adresseImmich = $derived(immich || (portImmich && location.protocol === 'http:' ? `http://${location.hostname}:${portImmich}` : ''))
   let corrige = $state(false)   // les gestes de correction sont rangés : on les sort par le crayon
   let nom = $state('')
   const ids = $derived(etape.photos.map((p) => p.id))
@@ -95,12 +98,10 @@
           <button type="button" disabled={p.id === etape.phare} onclick={() => oncorrige({ sorte: 'phare', effacer: ids, poser: p.id })}>{p.id === etape.phare ? 'Photo phare' : 'En faire la photo phare'}</button>
           <button type="button" onclick={() => retirer('retiree')}>Retirer du chemin</button>
           <button type="button" onclick={() => retirer('pas_elle')}>Ce n'est pas cette personne</button>
+          {#if adresseImmich}<a href={adresseImmich + '/photos/' + p.id} target="_blank" rel="noopener">Ouvrir dans Immich</a>{/if}
         </div>
       {/if}
-      <p class="pied">
-        {grande + 1} / {etape.photos.length}{p.video ? ' · vidéo (image seule ici)' : ''}
-        {#if immich}· <a href={immich + '/photos/' + p.id} target="_blank" rel="noopener">Ouvrir dans Immich</a>{/if}
-      </p>
+      <p class="pied">{grande + 1} / {etape.photos.length}{p.video ? ' · vidéo (image seule ici)' : ''}</p>
     </div>
   {/if}
 </dialog>
@@ -120,12 +121,12 @@
   .video { position: absolute; right: 0.35rem; bottom: 0.35rem; display: grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 50%; background: rgb(0 0 0 / 0.6); color: #fff; }
   .plein { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; background: #0b0a09; }
   .plein img { max-width: 100%; max-height: 100dvh; object-fit: contain; }
-  .plein .rond { position: absolute; background: rgb(0 0 0 / 0.55); color: #fff; border-color: rgb(255 255 255 / 0.2); }
+  .plein .rond { z-index: 2; position: absolute; background: rgb(0 0 0 / 0.55); color: #fff; border-color: rgb(255 255 255 / 0.2); }
   .fermer { top: calc(0.75rem + env(safe-area-inset-top, 0px)); right: max(0.75rem, env(safe-area-inset-right, 0px)); }
   .avant { left: max(0.75rem, env(safe-area-inset-left, 0px)); top: 50%; margin-top: -1.375rem; }
   .apres { right: max(0.75rem, env(safe-area-inset-right, 0px)); top: 50%; margin-top: -1.375rem; }
-  .pied { position: absolute; top: calc(1.4rem + env(safe-area-inset-top, 0px)); left: 0; right: 0; margin: 0; text-align: center; font-size: 0.85rem; color: #d8d2c8; text-shadow: 0 1px 3px #000; }
-  .pied a { color: #e3b556; text-decoration: underline; }
+  /* Le compteur passe sous les boutons et ne prend pas les clics : il recouvrait la croix. */
+  .pied { pointer-events: none; z-index: 0; position: absolute; top: calc(1.4rem + env(safe-area-inset-top, 0px)); left: 0; right: 0; margin: 0; text-align: center; font-size: 0.85rem; color: #d8d2c8; text-shadow: 0 1px 3px #000; }
   .rond[aria-pressed='true'] { border-color: var(--app); color: var(--app); }
   .correction { display: grid; gap: 0.6rem; padding: 0.9rem max(1rem, env(safe-area-inset-right, 0px)) 1rem max(1rem, env(safe-area-inset-left, 0px)); border-bottom: 1px solid var(--border); background: var(--card); }
   .correction label { font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted-foreground); }
@@ -136,6 +137,8 @@
   .aide { font-size: 0.82rem; color: var(--muted-foreground); }
   .phare { position: absolute; left: 0.35rem; top: 0.35rem; display: grid; place-items: center; width: 1.5rem; height: 1.5rem; border-radius: 50%; background: var(--app); color: var(--app-contraste); }
   .gestes { position: absolute; left: 0; right: 0; bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px)); display: flex; flex-wrap: wrap; justify-content: center; gap: 0.4rem; padding: 0 0.75rem; }
+  .gestes { z-index: 2; }
+  .gestes a { display: inline-flex; align-items: center; min-height: 2.75rem; padding: 0 0.85rem; border-radius: 999px; border: 1px solid #e3b556; background: rgb(0 0 0 / 0.6); color: #e3b556; font-size: 0.88rem; }
   .gestes button { min-height: 2.75rem; padding: 0 0.85rem; border-radius: 999px; border: 1px solid rgb(255 255 255 / 0.22); background: rgb(0 0 0 / 0.6); color: #fff; font-size: 0.88rem; }
   .gestes button:hover:not(:disabled) { border-color: #e3b556; } .gestes button:disabled { color: #e3b556; border-color: #e3b556; }
 </style>

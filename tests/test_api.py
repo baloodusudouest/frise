@@ -65,7 +65,7 @@ def test_le_chemin_de_camille(c):
     assert (mariage["nom"], mariage["debut"], mariage["fin"], mariage["age"]) == ("Mariage de Camille et Hugo", "2019-06-15", "2019-06-16", 32)
     assert r["etapes"] == 3 and r["photos"] == 6
     assert r["ecartees"] == {"avant_naissance": 1, "sans_date": 0}
-    assert r["immich"] == "http://photos.exemple"
+    assert r["immich"] == "http://photos.exemple" and r["immich_port"] == 0
 
 
 def test_ni_corbeille_ni_archive_ni_verrou(c):

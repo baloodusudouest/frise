@@ -173,7 +173,7 @@
 {/if}
 
 {#if etapeOuverte}
-  <Etape etape={etapeOuverte} immich={chemin.immich} oncorrige={corriger} onferme={() => (ouverte = null)} />
+  <Etape etape={etapeOuverte} immich={chemin.immich} portImmich={chemin.immich_port} oncorrige={corriger} onferme={() => (ouverte = null)} />
 {/if}
 
 <style>
