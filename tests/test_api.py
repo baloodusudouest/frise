@@ -325,7 +325,7 @@ def test_l_invite_seul_voit_son_chemin(monde):
     (c,) = r["chacun"]
     assert [ch["titre"] for ch in c["chapitres"]] == ["0 à 9 ans", "30 à 39 ans"]       # seul : par âge
     e = c["chapitres"][0]["etapes"][0]
-    assert set(e) == {"cle", "nom", "debut", "fin", "age", "nombre", "phare", "temps_fort"}   # pas la liste des photos
+    assert set(e) == {"cle", "nom", "debut", "fin", "quand", "fois", "age", "nombre", "phare", "temps_fort"}   # pas la liste des photos
     assert "immich" not in r and "de_cote" not in c
     assert client.get(f"/api/invite/{jeton}/vignette/{e['phare']}").status_code == 200
     assert client.get(f"/api/invite/{jeton}/vignette/{ident('bapteme1')}").status_code == 404   # pas une photo phare
@@ -421,3 +421,31 @@ def test_onglet_chambres_montre_les_pages_preparees(monde):
     sejour(client, h, chambre="ami", noms=["Inconnu TOTAL"], du="pas une date")         # personne de trouvé, date illisible
     ami = next(c for c in client.get("/api/chambres").json()["chambres"] if c["chambre"] == "ami")
     assert ami["introuvables"] == ["Inconnu TOTAL"] and ami["du"] == ""
+
+
+def test_regroupements_meme_nom_et_scans_par_annee(monde, c):
+    """0.9 : « Apéro » chaque semaine devient une étape ; les scans au 1er du mois se réunissent par année."""
+    client, faux = monde
+    faux.photos[CAMILLE] += [
+        photo("apero1", "2021-01-08T19:00:00", "2021/Apéro"), photo("apero2", "2021-01-22T19:00:00", "2021/Apéro"),
+        photo("noel21", "2021-02-01T12:00:00", "2021/2021-02-01 Fête des voisins"),
+        photo("apero3", "2021-03-05T19:00:00", "2021/Apéro"),
+        photo("apero4", "2021-08-20T19:00:00", "2021/Apéro"),                              # plus de deux mois après : à part
+        photo("scan1", "1992-03-01T00:00:00", "1992/1992-03-01"), photo("scan2", "1992-09-01T00:00:00", "1992/1992-09"),
+        photo("scan3", "1993-01-01T00:00:00", "1993"),
+    ]
+    main.ETAT["personnes"] = None
+    r = c.get(f"/api/chemin/{CAMILLE}?frais=true").json()
+    tout = etapes(r)
+    aperos = [e for e in tout if e["nom"] == "Apéro"]
+    assert [(e["debut"], e["fin"], e["fois"], e["nombre"]) for e in aperos] == [
+        ("2021-01-08", "2021-03-05", 3, 3), ("2021-08-20", "2021-08-20", 1, 1)]
+    assert any(e["nom"] == "Fête des voisins" for e in tout)                             # l'étape entre les deux reste
+    scans = [e for e in tout if e["quand"] in ("1992", "1993")]
+    assert [(e["quand"], e["nombre"], e["nom"]) for e in scans] == [("1992", 2, ""), ("1993", 1, "")]
+    # Nommer ou masquer l'étape réunie la touche toute entière (la marque n'est posée que sur la photo phare)
+    reunie = aperos[0]
+    r = marque(c, sorte="titre", effacer=[p["id"] for p in reunie["photos"]], poser=reunie["phare"], valeur="Apéros du vendredi")
+    assert [(e["nom"], e["fois"]) for e in etapes(r) if e["debut"] == "2021-01-08"] == [("Apéros du vendredi", 3)]
+    r = marque(c, sorte="masquee", poser=reunie["phare"])
+    assert [e["masquee"] for e in etapes(r) if e["debut"] == "2021-01-08"] == [True]

@@ -8,7 +8,7 @@
   import EyeOff from '@lucide/svelte/icons/eye-off'
   import { api } from '$lib/api.js'
   import { Button } from '$lib/components/ui/button/index.js'
-  import { ageDit, dateLongue, periode } from '$lib/dates.js'
+  import { ageDit, dateLongue, periode, quandDit, foisDit } from '$lib/dates.js'
   import Etape from '$lib/Etape.svelte'
 
   let { id, ondeconnecte } = $props()
@@ -122,11 +122,11 @@
           {#each c.etapes as e (e.cle)}
             <li class="etape {e.cote}" class:petite={e.nombre === 1 && !e.nom} class:masquee={e.masquee} use:apparait>
               <span class="point" class:fort={e.temps_fort} aria-hidden="true"></span>
-              <button type="button" class="carte" onclick={() => (ouverte = e.cle)} aria-label={(e.nom || periode(e.debut, e.fin)) + ', ' + e.nombre + ' photo' + (e.nombre > 1 ? 's' : '')}>
+              <button type="button" class="carte" onclick={() => (ouverte = e.cle)} aria-label={(e.nom || quandDit(e)) + ', ' + e.nombre + ' photo' + (e.nombre > 1 ? 's' : '')}>
                 <img src={'/api/vignette/' + e.phare} alt="" loading="lazy" />
                 <span class="dit">
-                  <strong class:plume={!!e.nom}>{#if e.masquee}<EyeOff class="mr-1 inline size-4 align-[-2px]" aria-label="Masquée" />{/if}{e.nom || periode(e.debut, e.fin)}</strong>
-                  <small>{e.nom ? periode(e.debut, e.fin) + ' · ' : ''}{ageDit(e.age)}{e.age != null && e.nombre > 1 ? ' · ' : ''}{e.nombre > 1 ? e.nombre + ' photos' : ''}</small>
+                  <strong class:plume={!!e.nom}>{#if e.masquee}<EyeOff class="mr-1 inline size-4 align-[-2px]" aria-label="Masquée" />{/if}{e.nom || quandDit(e)}</strong>
+                  <small>{e.nom ? quandDit(e) + foisDit(e) + ' · ' : ''}{ageDit(e.age)}{e.age != null && e.nombre > 1 ? ' · ' : ''}{e.nombre > 1 ? e.nombre + ' photos' : ''}</small>
                 </span>
               </button>
             </li>

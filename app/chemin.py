@@ -11,6 +11,7 @@ from datetime import date, datetime, timedelta
 from typing import Callable, Iterable
 
 ECART = timedelta(days=2)
+MEME_NOM = timedelta(days=60)   # 0.9 : deux étapes du même nom à moins de deux mois d'écart n'en font qu'une
 MOTS = ("mariage", "noces", "bapteme", "communion", "anniversaire", "diplome", "remise", "naissance",
         "noel", "vacances", "voyage", "fete")
 # Une date en tête de nom de dossier : « 2004 », « 2004-04 », « 2004-04-01 », « 20040401 », « 01-04-2004 ».
@@ -116,6 +117,55 @@ def _plus_frequent(noms: list[str]) -> str:
     return max(noms, key=lambda n: (noms.count(n), -noms.index(n))) if noms else ""
 
 
+def _au_mois(e: dict) -> bool:
+    """Une étape de scans datés au mois ou à l'année : toutes ses photos tombent le 1er du mois."""
+    return all(date_de(p) and date_de(p).day == 1 for p in e["groupe"])
+
+
+def regrouper(etapes: list[dict], personne: str) -> list[dict]:
+    """0.9 : moins d'étapes, plus parlantes.
+    - Les étapes du même nom proposé (album, dossier) à moins de deux mois d'écart n'en font qu'une, même si
+      d'autres étapes passent entre elles : « Apéro » toutes les semaines devient une étape, avec le nombre de fois.
+    - Les scans sans nom datés au 1er du mois se réunissent par année (« 1998 »).
+    Le nom proposé décide, pas le nom donné à la main ni le masquage (posés sur une seule photo de l'étape) :
+    l'étape réunie prend le nom donné, la photo phare choisie et le masquage de n'importe laquelle de ses parties."""
+    reunies: list[dict] = []
+    dernier: dict[str, dict] = {}
+    for e in sorted(etapes, key=lambda x: x["debut"]):
+        if e["propose"]:
+            cle = "nom:" + _plat(e["propose"])
+            proche = dernier.get(cle)
+            if proche and e["debut"] - proche["fin"] > MEME_NOM:
+                proche = None
+        elif _au_mois(e):
+            cle = f"annee:{e['debut'].year}"
+            proche = dernier.get(cle)
+        else:
+            reunies.append(e)
+            continue
+        if proche is None:
+            e = {**e, "parties": [e]}
+            if cle.startswith("annee:"):
+                e["quand"] = str(e["debut"].year)
+            reunies.append(e)
+            dernier[cle] = e
+            continue
+        proche["parties"].append(e)
+        proche["fin"] = max(proche["fin"], e["fin"])
+        proche["groupe"] = proche["groupe"] + e["groupe"]
+    for e in reunies:
+        parties = e.pop("parties", None)
+        if not parties or len(parties) == 1:
+            continue
+        e["fois"] = len(parties) if not e.get("quand") else 1
+        e["titre"] = next((x["titre"] for x in parties if x["titre"]), "")
+        e["masquee"] = any(x["masquee"] for x in parties)
+        choisie = next((x["phare"] for x in parties if x["phare_choisie"]), None)
+        e["phare_choisie"] = choisie is not None
+        e["phare"] = choisie or max(parties, key=lambda x: len(x["groupe"]))["phare"]
+    return reunies
+
+
 def calculer(personne: dict, photos: Iterable[dict], noms_d_albums: Callable[[list[str]], dict[str, str]],
              mots: tuple[str, ...] = (), marques: dict[str, dict[str, str]] | None = None,
              muets: tuple[str, ...] = (), decennies: bool = False) -> dict:
@@ -154,12 +204,15 @@ def calculer(personne: dict, photos: Iterable[dict], noms_d_albums: Callable[[li
     temoins = {id(e): list(dict.fromkeys(p["id"] for p in (e["phare"], e["groupe"][0], e["groupe"][-1]))) for e in etapes}
     albums = noms_d_albums([i for e in etapes if not e["titre"] for i in temoins[id(e)]])
 
+    for e in etapes:
+        e["propose"] = majuscule(_plus_frequent([albums.get(i, "") for i in temoins[id(e)]]) or nom_du_dossier(e["phare"], muets))
+    etapes = regrouper(etapes, personne["id"])
+
     chapitres: list[dict] = []
     masquees = 0
     for e in etapes:
         debut = e["debut"].date()
-        propose = _plus_frequent([albums.get(i, "") for i in temoins[id(e)]]) or nom_du_dossier(e["phare"], muets)
-        nom = majuscule(e["titre"] or propose)
+        nom = majuscule(e["titre"] or e["propose"])
         ans = age(naissance, debut) if naissance else None
         if decennies:
             cle, titre = f"annees-{debut.year // 10 * 10}", f"Années {debut.year // 10 * 10}"
@@ -173,7 +226,7 @@ def calculer(personne: dict, photos: Iterable[dict], noms_d_albums: Callable[[li
         masquees += e["masquee"]
         chapitres[-1]["etapes"].append({
             "cle": f"{e['debut']:%Y%m%d%H%M%S}", "nom": nom, "nom_choisi": bool(e["titre"]), "debut": debut.isoformat(),
-            "fin": e["fin"].date().isoformat(), "age": ans, "nombre": len(e["groupe"]), "phare": e["phare"]["id"],
+            "fin": e["fin"].date().isoformat(), "quand": e.get("quand", ""), "fois": e.get("fois", 1), "age": ans, "nombre": len(e["groupe"]), "phare": e["phare"]["id"],
             "phare_choisie": e["phare_choisie"], "masquee": e["masquee"],
             "temps_fort": bool(nom) and (bool(e["titre"]) or any(m in _plat(nom) for m in mots)),
             "photos": [{"id": p["id"], "video": p.get("type") == "VIDEO"} for p in e["groupe"]]})

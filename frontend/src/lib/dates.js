@@ -18,3 +18,7 @@ export function periode(debut, fin) {
 }
 
 export const ageDit = (age) => (age == null ? '' : age === 0 ? 'avant 1 an' : age === 1 ? 'à 1 an' : `à ${age} ans`)
+
+// 0.9 : ce qu'on lit d'une étape : « 1998 » pour des scans réunis par année, sinon ses dates
+export const quandDit = (e) => e.quand || periode(e.debut, e.fin)
+export const foisDit = (e) => (e.fois > 1 ? ` · ${e.fois} fois` : '')

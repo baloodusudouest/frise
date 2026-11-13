@@ -4,6 +4,7 @@ Fichier à lire en premier dans une nouvelle session, et à mettre à jour à ch
 
 ## État (13/11/2026)
 
+- **0.9.0** : `chemin.regrouper` (après le nom proposé, avant les chapitres) : même nom proposé à moins de `MEME_NOM` (60 j) → une étape (`fois`) ; sans nom et toutes les photos au 1er du mois → une étape par année (`quand`). La clé de réunion est le nom **proposé** (album, dossier), jamais le nom donné à la main ni le masquage, qui ne sont posés que sur la photo phare. Sonde du 13/11 sur la vraie frise d'un couple (0.8.0) : 333 étapes, 1 139 photos, 37 temps forts ; le chemin commun commence en 2020 → **l'intersection `personIds` d'Immich est confirmée**.
 - **0.8.0** : visionneuse de la photo phare dans `Invite.svelte` (état `grande`, dialogue `.grand`). Décision de l'utilisateur : la photo en grand est permise aux invités, la photo phare seulement.
 - **0.7.0** : `_ensemble` dans `app/main.py` (commun par `photos_ensemble`, chacun par `photos_de` filtré sur les personnes de la photo ⊆ {invité} ∪ hôtes ; étapes marquées `qui`, clés préfixées). Table `reglages` (clé « hotes »), `GET/PUT /api/reglages`. Le filtre suppose que la recherche d'Immich rend **toutes** les personnes reconnues sur chaque photo (`withPeople`) : à vérifier, sinon des photos avec d'autres gens passeraient. Un visage reconnu mais sans nom compte comme « quelqu'un d'autre ».
 - **0.6.0** : onglet « Chambres » (`pages/Chambres.svelte`, `GET /api/chambres`, `Base.invitations`), aperçu par `Invite.svelte` en mode `apercu`. Colonne `du` ajoutée à la table `invites` au démarrage (bases de la 0.5). La date d'arrivée vient de `sejour_debut` (package HA v1.3).
@@ -18,7 +19,7 @@ Fichier à lire en premier dans une nouvelle session, et à mettre à jour à ch
 
 ## À vérifier sur la vraie installation
 
-- **Immich : plusieurs `personIds` dans `/search/metadata` rendent-ils bien les photos où toutes les personnes sont ensemble** (intersection) ? Le faux Immich des tests le suppose. Si Immich rend l'union, le chemin commun serait faux : filtrer alors côté Sillage sur `people`.
+- Intersection `personIds` d'Immich : **confirmée** le 13/11/2026 (chemin commun d'un couple qui commence à leur rencontre).
 - L'iframe de la chambre : un tableau de bord ouvert en https (Nabu Casa, Funnel) refusera une page Sillage en http. Ouvrir le tableau de bord en local, ou passer Sillage en https.
 - Les noms : sortent-ils mieux ? Quels dossiers faut-il ajouter à `SILLAGE_DOSSIERS_MUETS` ?
 - La photo phare : si Immich ne rend pas les visages dans la recherche (`withPeople`), c'est la première image du groupe. À regarder avant de retoucher le choix automatique.

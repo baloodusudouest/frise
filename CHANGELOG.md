@@ -1,5 +1,13 @@
 # Journal des versions
 
+## 0.9.0 — 13/11/2026
+
+- **Moins d'étapes, plus parlantes** (vu sur une vraie frise de 333 étapes, dont « Apéro » des dizaines de fois) :
+  - les étapes du même nom à moins de deux mois d'écart n'en font qu'une, même si d'autres passent entre elles : « Apéro · 8 janvier – 5 mars 2021 · 3 fois » ;
+  - les scans sans nom datés au 1er du mois se réunissent par année : « 1998 · 9 photos ».
+- Partout : ton chemin et la page des invités. Nommer, masquer ou choisir la photo phare d'une étape réunie la touche toute entière.
+- Tests : 34 du serveur, 18 d'écran.
+
 ## 0.8.0 — 13/11/2026
 
 - **Page d'invité : la photo phare s'ouvre en grand** d'un clic ou d'un toucher, avec le nom et la date de l'étape ; fermeture par la croix, un clic à côté ou Échap. Seules les photos phares, comme avant : les autres photos de l'étape restent réservées au propriétaire.

@@ -175,7 +175,7 @@ def test_connexion_et_reglages(page):
     page.goto(page.base + "/#/connexion")
     page.get_by_text("Répond, version 3.4.1. 2 personnes nommées.").wait_for()
     page.goto(page.base + "/#/reglages")
-    page.get_by_text("Sillage 0.8.0").wait_for()
+    page.get_by_text("Sillage 0.9.0").wait_for()
     sans_debordement(page)
 
 

@@ -3,7 +3,7 @@
   // Ni mot de passe, ni corrections, ni lien vers Immich : la photo phare de chaque étape, et rien d'autre.
   // Deux invités : leur chemin commun (par décennie) ; sans photo ensemble, le chemin de chacun.
   import { onMount } from 'svelte'
-  import { periode } from '$lib/dates.js'
+  import { periode, quandDit, foisDit } from '$lib/dates.js'
 
   // apercu (0.6) : la même page, montrée au propriétaire dans l'onglet « Chambres »
   let { jeton, apercu = false } = $props()
@@ -100,13 +100,13 @@
                 <li class="etape {e.cote}" class:petite={e.nombre === 1 && !e.nom} class:colore={e.qui != null} style:--qui={couleur(e.qui)} use:apparait>
                   <span class="point" class:fort={e.temps_fort} aria-hidden="true"></span>
                   <div class="carte">
-                    <button type="button" class="ouvrir" aria-label={'Voir en grand : ' + (e.nom || periode(e.debut, e.fin))} onclick={() => (grande = e)}>
+                    <button type="button" class="ouvrir" aria-label={'Voir en grand : ' + (e.nom || quandDit(e))} onclick={() => (grande = e)}>
                       <img src={`/api/invite/${encodeURIComponent(jeton)}/vignette/${e.phare}`} alt="" loading="lazy" />
                     </button>
                     <span class="dit">
                       {#if e.qui != null}<span class="qui">{e.qui === 'ensemble' ? 'Ensemble' : prenom(vu.invites[e.qui])}</span>{/if}
-                      <strong class:plume={!!e.nom}>{e.nom || periode(e.debut, e.fin)}</strong>
-                      <small>{e.nom ? periode(e.debut, e.fin) : ''}{e.nom && e.age != null ? ' · ' : ''}{ageDit(e.age)}{e.nombre > 1 ? (e.nom || e.age != null ? ' · ' : '') + e.nombre + ' photos' : ''}</small>
+                      <strong class:plume={!!e.nom}>{e.nom || quandDit(e)}</strong>
+                      <small>{e.nom ? quandDit(e) + foisDit(e) : ''}{e.nom && e.age != null ? ' · ' : ''}{ageDit(e.age)}{e.nombre > 1 ? (e.nom || e.age != null ? ' · ' : '') + e.nombre + ' photos' : ''}</small>
                     </span>
                   </div>
                 </li>
@@ -120,11 +120,11 @@
 </svelte:element>
 
 {#if grande}
-  <div class="grand" role="dialog" aria-modal="true" aria-label={grande.nom || periode(grande.debut, grande.fin)}>
+  <div class="grand" role="dialog" aria-modal="true" aria-label={grande.nom || quandDit(grande)}>
     <button type="button" class="fond" aria-label="Fermer" onclick={() => (grande = null)}></button>
     <figure>
       <img src={`/api/invite/${encodeURIComponent(jeton)}/vignette/${grande.phare}`} alt={grande.nom || ''} />
-      <figcaption><strong class:plume={!!grande.nom}>{grande.nom || periode(grande.debut, grande.fin)}</strong>{#if grande.nom}<small>{periode(grande.debut, grande.fin)}</small>{/if}</figcaption>
+      <figcaption><strong class:plume={!!grande.nom}>{grande.nom || quandDit(grande)}</strong>{#if grande.nom}<small>{quandDit(grande)}</small>{/if}</figcaption>
     </figure>
     <button type="button" class="fermer" aria-label="Fermer" onclick={() => (grande = null)}>✕</button>
   </div>

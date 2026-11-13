@@ -319,7 +319,7 @@ def _pour_invite(c: dict) -> dict:
     ni photos mises de côté, ni lien vers Immich."""
     chapitres = []
     for ch in c["chapitres"]:
-        etapes = [{k: e[k] for k in ("cle", "nom", "debut", "fin", "age", "nombre", "phare", "temps_fort")}
+        etapes = [{k: e[k] for k in ("cle", "nom", "debut", "fin", "quand", "fois", "age", "nombre", "phare", "temps_fort")}
                   for e in ch["etapes"] if not e["masquee"]]
         if etapes:
             chapitres.append({"cle": ch["cle"], "titre": ch["titre"], "etapes": etapes})
