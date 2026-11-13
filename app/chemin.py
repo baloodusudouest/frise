@@ -91,6 +91,12 @@ def grouper(photos: Iterable[tuple[datetime, dict]]) -> list[list[tuple[datetime
     return groupes
 
 
+def majuscule(nom: str) -> str:
+    """La première lettre en majuscule, le reste tel qu'il est écrit (« noël chez mamie » → « Noël chez mamie »)."""
+    nom = nom.strip()
+    return nom[:1].upper() + nom[1:]
+
+
 def _plus_frequent(noms: list[str]) -> str:
     noms = [n for n in noms if n]
     return max(noms, key=lambda n: (noms.count(n), -noms.index(n))) if noms else ""
@@ -138,7 +144,7 @@ def calculer(personne: dict, photos: Iterable[dict], noms_d_albums: Callable[[li
     for e in etapes:
         debut = e["debut"].date()
         propose = _plus_frequent([albums.get(i, "") for i in temoins[id(e)]]) or nom_du_dossier(e["phare"], muets)
-        nom = e["titre"] or propose
+        nom = majuscule(e["titre"] or propose)
         ans = age(naissance, debut) if naissance else None
         if ans is None:
             cle, titre = str(debut.year), str(debut.year)

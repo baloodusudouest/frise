@@ -201,6 +201,9 @@ def test_le_nom_vient_de_l_album_le_plus_frequent_puis_du_dossier():
     assert [e["nom"] for ch in r["chapitres"] for e in ch["etapes"]] == ["Un album"]
     r = calcul.calculer({"id": "x", "name": "X"}, photos[:3], lambda ids: {})
     assert [e["nom"] for ch in r["chapitres"] for e in ch["etapes"]] == [""]         # phare = première image : « DCIM » ne dit rien
+    r = calcul.calculer({"id": "x", "name": "X"}, photos[:1], lambda ids: {"0": "noël chez mamie"})
+    assert [e["nom"] for ch in r["chapitres"] for e in ch["etapes"]] == ["Noël chez mamie"]      # majuscule d'office, reste intact
+    assert calcul.majuscule("  été à la mer ") == "Été à la mer" and calcul.majuscule("") == "" and calcul.majuscule("iPhone de Léa") == "IPhone de Léa"
     for muet in ("DCIM", "100APPLE", "Pellicule", "2019", "2020-05-01"):
         assert calcul.nom_du_dossier({"originalPath": f"/a/{muet}/x.jpg"}) == "", muet
     assert calcul.nom_du_dossier({"originalPath": "/a/Mon dossier/x.jpg"}, muets=("mon dossier",)) == ""

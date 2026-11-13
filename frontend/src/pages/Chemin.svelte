@@ -125,7 +125,7 @@
               <button type="button" class="carte" onclick={() => (ouverte = e.cle)} aria-label={(e.nom || periode(e.debut, e.fin)) + ', ' + e.nombre + ' photo' + (e.nombre > 1 ? 's' : '')}>
                 <img src={'/api/vignette/' + e.phare} alt="" loading="lazy" />
                 <span class="dit">
-                  <strong>{#if e.masquee}<EyeOff class="mr-1 inline size-4 align-[-2px]" aria-label="Masquée" />{/if}{e.nom || periode(e.debut, e.fin)}</strong>
+                  <strong class:plume={!!e.nom}>{#if e.masquee}<EyeOff class="mr-1 inline size-4 align-[-2px]" aria-label="Masquée" />{/if}{e.nom || periode(e.debut, e.fin)}</strong>
                   <small>{e.nom ? periode(e.debut, e.fin) + ' · ' : ''}{ageDit(e.age)}{e.age != null && e.nombre > 1 ? ' · ' : ''}{e.nombre > 1 ? e.nombre + ' photos' : ''}</small>
                 </span>
               </button>
@@ -203,6 +203,8 @@
   .carte img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: var(--secondary); }
   .dit { display: grid; gap: 0.15rem; padding: 0.7rem 0.9rem 0.8rem; min-width: 0; }
   .dit strong { font-weight: 600; text-wrap: balance; }
+  .dit strong:global(.plume) { font-size: 2.3rem; padding-top: 0.1rem; }
+  .petite .dit strong:global(.plume) { font-size: 1.9rem; }
   .dit small { font-size: 0.82rem; color: var(--muted-foreground); }
   /* Une photo isolée, sans nom : une simple ligne sur le trait */
   .petite .carte { flex-direction: row; align-items: center; max-width: 22rem; border-radius: 0.9rem; }

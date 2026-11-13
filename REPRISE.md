@@ -4,6 +4,7 @@ Fichier à lire en premier dans une nouvelle session, et à mettre à jour à ch
 
 ## État (13/11/2026)
 
+- **0.4.1** : noms d'évènements à la plume (classe `.plume`, police Tangerine embarquée), majuscule d'office (`chemin.majuscule`). Lisibilité à vérifier sur un vrai iPhone.
 - **0.4.0** : personnes de carnet (`_de_carnet`, `_personnes` dans `app/main.py` ; adresse `/sillage/personnes` de carnet 2.15, jeton partagé), Immich en secours. 27 tests du serveur, 12 d'écran. **Jamais essayé contre le vrai carnet.**
 - **0.3.0** : corrections (`app/base.py`, table `marques` par empreinte ; `POST /api/chemin/{personne}/marque`), noms d'étapes (trois photos témoins, dossiers muets), « Raconter » (`app/recit.py`, `pages/Recit.svelte`), trait animé (`pages/Chemin.svelte`). 25 tests du serveur, 12 d'écran.
 - **0.2.0** : connexion commune avec l'Anneau. **0.1.0** : personnes d'Immich, chemin, étape ouverte.

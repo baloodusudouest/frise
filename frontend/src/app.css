@@ -17,6 +17,7 @@
 
 :root {
   color-scheme: dark;
+  --plume: "Tangerine", "Snell Roundhand", cursive;   /* les noms des évènements, à la plume comme sur l'Anneau */
   --app: #e3b556;                         /* miel doré (sombre) */
   --app-contraste: #2a1f08;               /* texte posé sur le miel */
 
@@ -120,3 +121,6 @@
   .etiquette { font-size: 0.72rem; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted-foreground); }
   .chiffre { font-weight: 300; letter-spacing: -0.04em; line-height: 1; font-variant-numeric: tabular-nums; }
 }
+
+/* Un nom d'évènement : à la plume, couleur de l'appli. La plume est petite pour sa taille : on la grossit. */
+.plume { font-family: var(--plume); font-weight: 700; color: var(--app); line-height: 1.05; letter-spacing: 0.01em; }

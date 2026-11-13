@@ -41,7 +41,7 @@
 <dialog bind:this={boite} class="etape-ouverte" aria-label={titre} oncancel={(e) => e.preventDefault()}>
   <header>
     <div class="min-w-0">
-      <h2 class="text-xl font-semibold text-balance">{titre}</h2>
+      <h2 class={etape.nom ? 'plume text-[2.4rem] text-balance' : 'text-xl font-semibold text-balance'}>{titre}</h2>
       <p class="text-sm text-muted-foreground">{etape.nom ? periode(etape.debut, etape.fin) + ' · ' : ''}{ageDit(etape.age)}{etape.age != null ? ' · ' : ''}{etape.photos.length} photo{etape.photos.length > 1 ? 's' : ''}</p>
     </div>
     <div class="flex flex-none gap-2">
