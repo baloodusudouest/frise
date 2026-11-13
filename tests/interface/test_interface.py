@@ -199,7 +199,8 @@ def test_connexion_et_reglages(page):
     page.goto(page.base + "/#/connexion")
     page.get_by_text("Répond, version 3.4.1. 2 personnes nommées.").wait_for()
     page.goto(page.base + "/#/reglages")
-    page.get_by_text("Sillage 0.10.0").wait_for()
+    from app import __version__
+    page.get_by_text(f"Sillage {__version__}").wait_for()
     sans_debordement(page)
 
 

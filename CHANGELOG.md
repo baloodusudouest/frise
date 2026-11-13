@@ -1,5 +1,9 @@
 # Journal des versions
 
+
+## 0.10.1 — 14 novembre 2026
+- **Sillage passe en lavande crépuscule** (`#a98fd8`, le miel doré avant), icône comprise. L'or est gardé pour l'Anneau : carnet, Sillage et l'Anneau avaient trois ors voisins. Dans la frise de plusieurs invités, le quatrième invité prend l'ancien miel (sa lavande était trop proche des moments ensemble, qui suivent la couleur de Sillage).
+
 ## 0.10.0 — 13/11/2026
 
 - **Noms d'étapes plus propres** (vus sur ta photothèque) : l'année en tête d'un album part (« 2007 - Soirée class » → « Soirée class »), comme pour les dossiers. Un lot de numérisation (« 1998 Numérisation … », « Scans … ») n'est plus pris pour un nom : ses scans datés au mois se réunissent par année.

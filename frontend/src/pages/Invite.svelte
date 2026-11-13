@@ -24,8 +24,8 @@
       .filter((c) => c.etapes.length)
   })
   const ageDit = (a) => (a == null ? '' : a === 0 ? 'avant 1 an' : a === 1 ? 'à 1 an' : `à ${a} ans`)
-  // 0.7 : la frise de plusieurs invités, une couleur par invité et le miel pour les moments ensemble
-  const COULEURS = ['#7fb7e6', '#e58fa8', '#8fd1a6', '#c3a6f0']
+  // 0.7 : la frise de plusieurs invités, une couleur par invité et celle de Sillage (lavande depuis la 0.10.1) pour les moments ensemble
+  const COULEURS = ['#7fb7e6', '#e58fa8', '#8fd1a6', '#e3b556']   // le 4e était lavande : trop proche de « ensemble »
   const couleur = (qui) => (qui === 'ensemble' || qui == null ? 'var(--app)' : COULEURS[qui % COULEURS.length])
   const prenom = (nom) => nom.split(' ')[0]
   const prenoms = (noms) => noms.length < 2 ? noms.join('') : noms.slice(0, -1).join(', ') + ' et ' + noms.at(-1)

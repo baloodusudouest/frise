@@ -19,8 +19,8 @@
 :root {
   color-scheme: dark;
   --plume: "Tangerine", "Snell Roundhand", cursive;   /* les noms des évènements, à la plume comme sur l'Anneau */
-  --app: #e3b556;                         /* miel doré (sombre) */
-  --app-contraste: #2a1f08;               /* texte posé sur le miel */
+  --app: #a98fd8;                         /* lavande crépuscule (0.10.1 ; miel doré avant) */
+  --app-contraste: #1b1230;               /* texte posé sur la lavande */
 
   --radius: 0.75rem;
   --background: #151311;

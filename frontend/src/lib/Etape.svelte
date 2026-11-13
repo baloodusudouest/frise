@@ -146,7 +146,7 @@
   .phare { position: absolute; left: 0.35rem; top: 0.35rem; display: grid; place-items: center; width: 1.5rem; height: 1.5rem; border-radius: 50%; background: var(--app); color: var(--app-contraste); }
   .gestes { position: absolute; left: 0; right: 0; bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px)); display: flex; flex-wrap: wrap; justify-content: center; gap: 0.4rem; padding: 0 0.75rem; }
   .gestes { z-index: 2; }
-  .gestes a { display: inline-flex; align-items: center; min-height: 2.75rem; padding: 0 0.85rem; border-radius: 999px; border: 1px solid #e3b556; background: rgb(0 0 0 / 0.6); color: #e3b556; font-size: 0.88rem; }
+  .gestes a { display: inline-flex; align-items: center; min-height: 2.75rem; padding: 0 0.85rem; border-radius: 999px; border: 1px solid #a98fd8; background: rgb(0 0 0 / 0.6); color: #a98fd8; font-size: 0.88rem; }
   .gestes button { min-height: 2.75rem; padding: 0 0.85rem; border-radius: 999px; border: 1px solid rgb(255 255 255 / 0.22); background: rgb(0 0 0 / 0.6); color: #fff; font-size: 0.88rem; }
-  .gestes button:hover:not(:disabled) { border-color: #e3b556; } .gestes button:disabled { color: #e3b556; border-color: #e3b556; }
+  .gestes button:hover:not(:disabled) { border-color: #a98fd8; } .gestes button:disabled { color: #a98fd8; border-color: #a98fd8; }
 </style>
