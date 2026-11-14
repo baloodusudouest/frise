@@ -139,13 +139,19 @@ def test_012_voir_tout_l_album(page):
     page.goto(page.base + "/#/chemin/" + CAMILLE)
     page.reload()                                               # repart d'une page sans étape ouverte
     page.get_by_role("button", name="Mariage de Camille et Hugo, 40 photos").click()
+    # 0.12.2 : toutes les croix au même endroit (étape, photo, album, photo de l'album)
+    place = lambda nom: tuple(round(v) for k, v in page.get_by_role("button", name=nom, exact=True).bounding_box().items() if k in ("x", "y"))
+    coin = place("Fermer l'étape")
     page.get_by_role("button", name="Photo 1", exact=True).click()
+    assert place("Fermer la photo") == coin and page.get_by_role("button", name="Fermer l'étape").count() == 0
     page.get_by_role("button", name="Voir tout l'album").click()
     album = page.get_by_role("dialog", name="Album Mariage de Camille et Hugo")
     album.wait_for()
     album.locator(".grille li").first.wait_for()
     assert album.locator(".grille li").count() == 40
+    assert place("Fermer l'album") == coin and page.get_by_role("button", name="Fermer la photo").count() == 0
     album.get_by_role("button", name="Photo 3", exact=True).click()
+    assert place("Revenir à l'album") == coin
     assert album.get_by_role("group", name="Photo 3 sur 40").is_visible()
     page.keyboard.press("ArrowRight")
     assert album.get_by_role("group", name="Photo 4 sur 40").is_visible()

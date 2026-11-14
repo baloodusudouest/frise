@@ -5,6 +5,7 @@
   import { onMount } from 'svelte'
   import { periode, quandDit, foisDit } from '$lib/dates.js'
   import Album from '$lib/Album.svelte'
+  import Croix from '$lib/Croix.svelte'
 
   // apercu (0.6) : la même page, montrée au propriétaire dans l'onglet « Chambres »
   let { jeton, apercu = false } = $props()
@@ -138,8 +139,8 @@
       <img src={`/api/invite/${encodeURIComponent(jeton)}/vignette/${grande.phare}`} alt={grande.nom || ''} />
       <figcaption><strong class:plume={!!grande.nom}>{grande.nom || quandDit(grande)}</strong>{#if grande.nom}<small>{quandDit(grande)}</small>{/if}</figcaption>
     </figure>
-    <button type="button" class="fermer" aria-label="Fermer" onclick={() => (grande = null)}>✕</button>
-    <button type="button" class="voir-album" onclick={() => (album = grande.phare)}>Voir l'album</button>
+    {#if !album}<Croix label="Fermer" onclick={() => (grande = null)} />
+    <button type="button" class="face-croix" onclick={() => (album = grande.phare)}>Voir l'album</button>{/if}
   </div>
 {/if}
 {#if album}
@@ -223,8 +224,6 @@
   .grand figcaption { display: grid; justify-items: center; color: var(--foreground); text-align: center; }
   .grand figcaption .plume { font-size: 2rem; color: var(--app); }
   .grand small { color: var(--muted-foreground); }
-  .voir-album { position: absolute; z-index: 1; top: calc(0.5rem + env(safe-area-inset-top)); left: calc(0.5rem + env(safe-area-inset-left)); min-height: 2.75rem; padding: 0 1rem; border-radius: 999px; border: 1px solid var(--app); background: var(--card); color: inherit; font: inherit; cursor: pointer; }
-  .fermer { position: absolute; top: calc(0.5rem + env(safe-area-inset-top)); right: calc(0.5rem + env(safe-area-inset-right)); width: 2.75rem; height: 2.75rem; border-radius: 50%; border: 1px solid var(--border); background: var(--card); font-size: 1.1rem; }
   .accueil { min-height: 40dvh; display: grid; place-content: center; gap: 0.75rem; text-align: center; padding: 2rem 1rem; }
   .accueil h1 { font-size: 3.4rem; margin: 0; }
   .accueil p { margin: 0; max-width: 34ch; color: var(--muted-foreground); }

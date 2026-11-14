@@ -4,6 +4,10 @@
 
 
 
+
+## 0.12.2 — 14 novembre 2026
+- **Une seule place pour fermer.** La croix de l'étape, de la photo en grand, de l'album et de la photo d'un invité est maintenant toujours au même endroit — le coin haut droit de l'écran, sous la barre d'état de l'iPhone — avec le même dessin. Une seule croix à la fois (celle de ce qui est au-dessus). « Voir tout l'album » / « Voir l'album » lui font face, en haut à gauche. Un test vérifie que les croix tombent au même pixel.
+- L'album couvre entièrement ce qui est derrière (on voyait le compteur de la photo au travers) ; trois colonnes de photos sur iPhone.
 ## 0.12.1 — 14 novembre 2026
 - **« Voir l'album » restait vide pour les invités.** Immich ne dit pas qui est sur les photos d'un album : le filtre « un invité est reconnu » ne gardait rien. Les photos de l'album sont maintenant croisées avec celles où un invité est reconnu ; et quand l'étape n'est dans aucun album (nom tiré du dossier, « Noël 2023 »), « Voir l'album » montre les photos de l'étape elle-même — celles que le compteur annonce. Le titre est alors celui de l'étape.
 ## 0.12.0 — 14 novembre 2026

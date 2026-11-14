@@ -1,12 +1,12 @@
 <script>
   // Une étape ouverte : sa galerie, puis une photo en grand (flèches, touches, glissement du doigt).
-  import X from '@lucide/svelte/icons/x'
   import ChevronLeft from '@lucide/svelte/icons/chevron-left'
   import ChevronRight from '@lucide/svelte/icons/chevron-right'
   import Play from '@lucide/svelte/icons/play'
   import Pencil from '@lucide/svelte/icons/pencil'
   import Star from '@lucide/svelte/icons/star'
   import Album from './Album.svelte'
+  import Croix from './Croix.svelte'
   import { api } from './api.js'
   import { ageDit, periode, quandDit, foisDit } from '$lib/dates.js'
 
@@ -53,7 +53,7 @@
     </div>
     <div class="flex flex-none gap-2">
       <button type="button" class="rond" aria-label="Corriger l'étape" aria-pressed={corrige} onclick={ouvrirCorrection}><Pencil class="size-5" aria-hidden="true" /></button>
-      <button type="button" class="rond" aria-label="Fermer l'étape" onclick={() => onferme?.()}><X class="size-5" aria-hidden="true" /></button>
+      {#if grande === null}<Croix label="Fermer l'étape" onclick={() => onferme?.()} />{/if}
     </div>
   </header>
   {#if corrige}
@@ -99,7 +99,7 @@
           <img src={'/api/vignette/' + p.id + '?grande=true'} alt="" />
         {/if}
       {/key}
-      <button type="button" class="rond fermer" aria-label="Fermer la photo" onclick={() => (grande = null)}><X class="size-5" aria-hidden="true" /></button>
+      {#if !album}<Croix label="Fermer la photo" onclick={() => (grande = null)} />{/if}
       {#if etape.photos.length > 1}
         <button type="button" class="rond avant" aria-label="Photo précédente" onclick={() => aller(-1)}><ChevronLeft class="size-6" aria-hidden="true" /></button>
         <button type="button" class="rond apres" aria-label="Photo suivante" onclick={() => aller(1)}><ChevronRight class="size-6" aria-hidden="true" /></button>
@@ -112,7 +112,7 @@
           {#if adresseImmich}<a href={adresseImmich + '/photos/' + p.id} target="_blank" rel="noopener">Ouvrir dans Immich</a>{/if}
         </div>
       {/if}
-      <button type="button" class="voir-album" onclick={() => (album = p.id)}>Voir tout l'album</button>
+      {#if !album}<button type="button" class="face-croix" onclick={() => (album = p.id)}>Voir tout l'album</button>{/if}
       <p class="pied">{grande + 1} / {etape.photos.length}{p.video ? ' · vidéo' : ''}</p>
     </div>
   {/if}
@@ -126,7 +126,7 @@
   .etape-ouverte { width: min(64rem, 100%); max-width: 100%; height: 100dvh; max-height: 100dvh; margin: 0 auto; padding: 0; border: 0; background: var(--background); color: var(--foreground); overflow-y: auto; }
   .etape-ouverte::backdrop { background: rgb(0 0 0 / 0.7); }
   header { position: sticky; top: 0; z-index: 2; display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem;
-           padding: calc(1rem + env(safe-area-inset-top, 0px)) max(1rem, env(safe-area-inset-right, 0px)) 0.9rem max(1rem, env(safe-area-inset-left, 0px)); background: var(--background); border-bottom: 1px solid var(--border); }
+           padding: calc(1rem + env(safe-area-inset-top, 0px)) calc(4rem + env(safe-area-inset-right, 0px)) 0.9rem max(1rem, env(safe-area-inset-left, 0px)); background: var(--background); border-bottom: 1px solid var(--border); }
   .rond { display: grid; place-items: center; flex: none; width: 2.75rem; height: 2.75rem; border-radius: 50%; border: 1px solid var(--border); background: var(--card); color: var(--foreground); }
   .rond:hover { border-color: var(--app); }
   .galerie { list-style: none; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr)); gap: 0.4rem;
@@ -139,14 +139,11 @@
   .plein img, .plein video { max-width: 100%; max-height: 100dvh; object-fit: contain; }
   .plein video { z-index: 1; max-height: calc(100dvh - 9rem); }
   .plein .rond { z-index: 2; position: absolute; background: rgb(0 0 0 / 0.55); color: #fff; border-color: rgb(255 255 255 / 0.2); }
-  .fermer { top: calc(0.75rem + env(safe-area-inset-top, 0px)); right: max(0.75rem, env(safe-area-inset-right, 0px)); }
   .avant { left: max(0.75rem, env(safe-area-inset-left, 0px)); top: 50%; margin-top: -1.375rem; }
   .apres { right: max(0.75rem, env(safe-area-inset-right, 0px)); top: 50%; margin-top: -1.375rem; }
   /* Le compteur passe sous les boutons et ne prend pas les clics : il recouvrait la croix. */
   .pied { pointer-events: none; z-index: 0; position: absolute; top: calc(1.4rem + env(safe-area-inset-top, 0px)); left: 0; right: 0; margin: 0; text-align: center; font-size: 0.85rem; color: #d8d2c8; text-shadow: 0 1px 3px #000; }
   .rond[aria-pressed='true'] { border-color: var(--app); color: var(--app); }
-  /* 0.12 : en haut à gauche, face à la croix */
-  .voir-album { position: absolute; z-index: 2; top: calc(0.75rem + env(safe-area-inset-top, 0px)); left: max(0.75rem, env(safe-area-inset-left, 0px)); min-height: 2.75rem; padding: 0 0.95rem; border-radius: 999px; border: 1px solid #a98fd8; background: rgb(0 0 0 / 0.6); color: #fff; font-size: 0.88rem; cursor: pointer; }
   .correction { display: grid; gap: 0.6rem; padding: 0.9rem max(1rem, env(safe-area-inset-right, 0px)) 1rem max(1rem, env(safe-area-inset-left, 0px)); border-bottom: 1px solid var(--border); background: var(--card); }
   .correction label { font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted-foreground); }
   .ligne { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }

@@ -105,3 +105,18 @@
 
 /* Un nom d'évènement : à la plume, couleur de l'appli. La plume est petite pour sa taille : on la grossit. */
 .plume { font-family: var(--plume); font-weight: 700; color: var(--app); line-height: 1.05; letter-spacing: 0.01em; }
+
+/* 0.12.2 : toutes les croix de fermeture (étape, photo, album, photo d'invité) au même endroit, avec le même dessin :
+   le coin haut droit de l'écran, sous la barre d'état de l'iPhone. */
+.croix {
+  position: fixed; z-index: 70; top: calc(0.75rem + env(safe-area-inset-top, 0px)); right: max(0.75rem, env(safe-area-inset-right, 0px));
+  display: grid; place-items: center; width: 2.75rem; height: 2.75rem; padding: 0; border-radius: 50%;
+  border: 1px solid rgb(255 255 255 / 0.22); background: rgb(0 0 0 / 0.55); color: #fff; cursor: pointer;
+}
+.croix:hover { border-color: var(--app); }
+.croix svg { width: 1.25rem; height: 1.25rem; }
+/* Le bouton qui fait face à la croix (« Voir tout l'album », « Voir l'album »), à la même hauteur, côté gauche */
+.face-croix {
+  position: fixed; z-index: 70; top: calc(0.75rem + env(safe-area-inset-top, 0px)); left: max(0.75rem, env(safe-area-inset-left, 0px));
+  min-height: 2.75rem; padding: 0 1rem; border-radius: 999px; border: 1px solid var(--app); background: rgb(0 0 0 / 0.6); color: #fff; font: inherit; font-size: 0.9rem; cursor: pointer;
+}

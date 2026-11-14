@@ -1,4 +1,5 @@
 <script>
+  import Croix from './Croix.svelte'
   // 0.12 : toutes les photos de l'album d'une photo, dans Sillage (propriétaire ou invité).
   // charger() → { nom, photos: [{ id, video }], total } ; image(id, grande) → adresse de la vignette.
   // video(id) → adresse de lecture (propriétaire seulement) ; sans elle, une vidéo s'affiche en image.
@@ -28,7 +29,7 @@
       <h2>{album ? album.nom || secours || 'Sans nom' : 'Lecture…'}</h2>
       {#if album}<p class="compte">{album.photos.length} photo{album.photos.length > 1 ? 's' : ''}{album.total > album.photos.length ? ` sur ${album.total}` : ''}</p>{/if}
     </div>
-    <button type="button" class="rond" aria-label="Fermer l'album" onclick={() => onferme?.()}>✕</button>
+    {#if vue === null}<Croix label="Fermer l'album" onclick={() => onferme?.()} />{/if}
   </header>
   {#if erreur}<p class="vide" role="alert">{erreur}</p>
   {:else if album && !album.photos.length}<p class="vide">Cette photo n'est dans aucun album{album.nom ? ' où l\'on vous voit' : ''}.</p>
@@ -51,7 +52,7 @@
         {#if p.video && video}<video src={video(p.id)} poster={image(p.id, true)} controls playsinline preload="metadata"></video>
         {:else}<img src={image(p.id, true)} alt="" />{/if}
       {/key}
-      <button type="button" class="rond fermer" aria-label="Revenir à l'album" onclick={() => (vue = null)}>✕</button>
+      <Croix label="Revenir à l'album" onclick={() => (vue = null)} />
       {#if album.photos.length > 1}
         <button type="button" class="rond avant" aria-label="Photo précédente" onclick={() => aller(-1)}>‹</button>
         <button type="button" class="rond apres" aria-label="Photo suivante" onclick={() => aller(1)}>›</button>
@@ -62,14 +63,14 @@
 </div>
 
 <style>
-  .album { position: fixed; inset: 0; z-index: 60; overflow-y: auto; background: color-mix(in srgb, var(--background, #151311) 97%, transparent);
+  .album { position: fixed; inset: 0; z-index: 60; overflow-y: auto; background: var(--background, #151311);
     padding: calc(1rem + env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) calc(2rem + env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left)); }
-  header { display: flex; align-items: flex-start; gap: 1rem; max-width: 72rem; margin: 0 auto 1rem; }
+  header { display: flex; align-items: flex-start; gap: 1rem; max-width: 72rem; margin: 0 auto 1rem; padding-right: 3.5rem; }
   .titre { flex: 1; min-width: 0; }
   .sur { margin: 0; font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.7; }
   h2 { margin: 0.1rem 0 0; font-size: clamp(1.4rem, 4vw, 2rem); font-weight: 300; letter-spacing: -0.01em; overflow-wrap: anywhere; }
   .compte { margin: 0.2rem 0 0; font-size: 0.85rem; opacity: 0.7; }
-  .grille { list-style: none; margin: 0 auto; padding: 0; max-width: 72rem; display: grid; gap: 4px; grid-template-columns: repeat(auto-fill, minmax(min(30vw, 9rem), 1fr)); }
+  .grille { list-style: none; margin: 0 auto; padding: 0; max-width: 72rem; display: grid; gap: 4px; grid-template-columns: repeat(auto-fill, minmax(min(26vw, 8.5rem), 1fr)); }
   .grille button { position: relative; display: block; width: 100%; aspect-ratio: 1; padding: 0; border: 0; background: rgb(255 255 255 / 0.05); cursor: pointer; overflow: hidden; border-radius: 3px; }
   .grille img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .lecture { position: absolute; right: 6px; bottom: 4px; color: #fff; text-shadow: 0 1px 3px #000; font-size: 0.85rem; }
@@ -78,7 +79,6 @@
     background: rgb(0 0 0 / 0.45); color: #fff; font-size: 1.2rem; cursor: pointer; }
   .grand { position: fixed; inset: 0; z-index: 61; display: grid; place-items: center; background: #000; }
   .grand img, .grand video { max-width: 100vw; max-height: 100dvh; object-fit: contain; }
-  .grand .fermer { position: absolute; top: calc(0.75rem + env(safe-area-inset-top)); right: max(0.75rem, env(safe-area-inset-right)); }
   .grand .avant, .grand .apres { position: absolute; top: 50%; transform: translateY(-50%); font-size: 1.8rem; }
   .grand .avant { left: max(0.5rem, env(safe-area-inset-left)); }
   .grand .apres { right: max(0.5rem, env(safe-area-inset-right)); }
