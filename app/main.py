@@ -2,6 +2,9 @@
 
 Routes : /health (publique), /api/session, /api/connexion, /api/deconnexion, /api/personnes,
 /api/chemin/{personne} (et /marque), /api/recit/{personne}, /api/portrait/{personne}, /api/vignette/{photo}, /api/services, puis l'interface.
+
+0.13 : la frise d'une invitation est préparée dès que Home Assistant la pose, gardée dans la base, et refaite
+chaque nuit (SILLAGE_HEURE_FRISES, 2 h par défaut) avec les photos ajoutées : l'invité ne fait jamais attendre Immich.
 """
 from __future__ import annotations
 
@@ -55,8 +58,17 @@ async def cycle(app: FastAPI):
     ETAT.setdefault("immich", Immich(cfg.immich_url, cfg.immich_cle))
     ETAT.update(cfg=cfg, sessions=Sessions(APPLI, cfg.password, _lire_generation(cfg)),
                 personnes=None, lues={}, albums={}, connues={}, derniere_lecture=None, toutes=None, invites={},
-                base=Base(cfg.data / "sillage.db"), cache=Cache(cfg.data / "vignettes", cfg.cache_mo))
+                base=Base(cfg.data / "sillage.db"), cache=Cache(cfg.data / "vignettes", cfg.cache_mo),
+                fond=[], verrous={}, nuit=None)
+    # Les invitations posées sans frise (base d'avant la 0.13, arrêt pendant une préparation) sont préparées au démarrage
+    manquantes = [i["jeton"] for i in ETAT["base"].invitations() if i["jeton"] not in ETAT["base"].preparees()]
+    if manquantes:
+        _en_fond(_preparer, manquantes)
+    nuit = asyncio.create_task(_chaque_nuit())
     yield
+    nuit.cancel()
+    for fil in ETAT["fond"]:
+        fil.join(timeout=10)
     ETAT["base"].fermer()
 
 
@@ -87,7 +99,7 @@ async def _immich(_: Request, exc: ErreurImmich):
 
 @app.get("/health")
 def sante():
-    return {"ok": True, "version": __version__}
+    return {"ok": True, "version": __version__, "frises_pretes": len(ETAT["base"].preparees())}
 
 
 # ================================================================ connexion
@@ -235,6 +247,8 @@ def marquer(personne: str, corps: dict = Body(...)):
         raise HTTPException(422, "Le nom est vide.")
     ETAT["base"].marquer(personne, sorte, [connues[str(i)] for i in (corps.get("effacer") or [])],
                          connues[str(corps["poser"])] if corps.get("poser") else None, valeur)
+    # 0.13 : les frises d'invités où paraît cette personne sont refaites avec la correction
+    _oublier([i["jeton"] for i in ETAT["base"].invitations() if any(p["id"] == personne for p in i["personnes"])])
     return _chemin(personne)
 
 
@@ -312,7 +326,8 @@ def sejour(corps: dict = Body(...)):
         p = _trouver(n)
         (trouves.append({"id": p["id"], "nom": n}) if p else manquants.append(n))
     jeton = ETAT["base"].poser_invite(chambre, trouves or [{"id": "", "nom": n} for n in noms], expire, du)
-    ETAT["invites"].pop(jeton, None)
+    if not ETAT["base"].frise(jeton):                # nouvelle invitation : sa frise se prépare tout de suite, en fond
+        _en_fond(_preparer, [jeton])
     return {"chemin": f"/invite/{jeton}", "trouves": [t["nom"] for t in trouves], "manquants": manquants, "expire": expire}
 
 
@@ -371,18 +386,13 @@ def _ensemble(gens: list[dict], fiches: dict, lire_marques, cfg, photos_etapes: 
             "etapes": sum(len(ch["etapes"]) for ch in ordre)}
 
 
-def _invitation(jeton: str) -> dict:
-    inv = ETAT["base"].invite(jeton)
-    if not inv:
-        raise HTTPException(404, "Cette invitation n'existe pas ou a expiré.")
-    garde_ = ETAT["invites"].get(jeton)
-    if garde_ and time.monotonic() - garde_[0] < MEMOIRE:
-        return garde_[1]
+def _calculer(inv: dict) -> dict:
+    """La frise d'une invitation, lue dans Immich (le travail lent). Rend un dictionnaire gardable en JSON :
+    ce que voit l'invité, plus les clés « _ » qui ne partent jamais vers lui."""
     gens = [p for p in inv["personnes"] if p["id"]]
     fiches = {p["id"]: p for p in _toutes()}
     lire_marques = ETAT["base"].marques
     cfg = ETAT["cfg"]
-
     commun, chacun, photos_etapes = None, [], {}
     if len(gens) > 1:
         commun = _ensemble(gens, fiches, lire_marques, cfg, photos_etapes)
@@ -394,10 +404,114 @@ def _invitation(jeton: str) -> dict:
         chacun = [c] if c["etapes"] else []
     resultat = {"invites": [p["nom"] for p in inv["personnes"]], "commun": commun, "chacun": chacun,
                 "accueil": commun is None and not chacun}
-    phares = {e["phare"] for c in ([commun] if commun else []) + chacun for ch in c["chapitres"] for e in ch["etapes"]}
-    ETAT["invites"][jeton] = (time.monotonic(), {**resultat, "_phares": phares, "_gens": [g["id"] for g in gens], "_album": set(),
-                                                    "_photos_etapes": photos_etapes, "_photos_gens": None})
-    return ETAT["invites"][jeton][1]
+    phares = sorted({e["phare"] for c in ([commun] if commun else []) + chacun for ch in c["chapitres"] for e in ch["etapes"]})
+    # Les photos où un invité est reconnu servent à « Voir l'album » (0.12.1) : lues ici, pas au clic de l'invité
+    photos_gens = sorted({p["id"] for g in gens for p in ETAT["immich"].photos_de(g["id"])})
+    return {**resultat, "_phares": phares, "_gens": [g["id"] for g in gens], "_photos_etapes": photos_etapes,
+            "_photos_gens": photos_gens}
+
+
+def _en_memoire(jeton: str, contenu: dict) -> dict:
+    """La frise gardée telle qu'elle sert : ensembles pour les contrôles ; les photos d'album déjà ouvertes restent permises."""
+    avant = ETAT["invites"].get(jeton)
+    vue = {**contenu, "_phares": set(contenu["_phares"]), "_photos_gens": set(contenu["_photos_gens"]),
+           "_album": avant["_album"] if avant else set()}
+    ETAT["invites"][jeton] = vue
+    return vue
+
+
+def _verrou(jeton: str) -> threading.Lock:
+    with VERROU:
+        return ETAT["verrous"].setdefault(jeton, threading.Lock())
+
+
+def _preparer_un(jeton: str, refaire: bool = True) -> dict | None:
+    """Calcule et garde la frise d'une invitation. Sans `refaire`, une frise déjà gardée (par un autre fil) suffit."""
+    with _verrou(jeton):
+        inv = ETAT["base"].invite(jeton)
+        if not inv:
+            ETAT["invites"].pop(jeton, None)
+            return None
+        if not refaire and (deja := ETAT["base"].frise(jeton)):
+            return _en_memoire(jeton, deja[0])
+        contenu = _calculer(inv)
+        ETAT["base"].garder_frise(jeton, contenu)
+        return _en_memoire(jeton, contenu)
+
+
+def _chauffer(vue: dict) -> None:
+    """Les photos phares d'une frise, lues d'avance dans Immich et gardées sur disque : l'invité les voit sans attendre."""
+    for photo in sorted(vue["_phares"]):
+        if not ETAT["cache"].lire(f"{photo}-preview"):
+            try:
+                _vignette(photo, "preview")
+            except Exception as exc:                 # une image illisible n'arrête pas la préparation
+                log.warning("Vignette %s non préparée : %s", photo, exc)
+
+
+def _preparer(jetons: list[str]) -> None:
+    for jeton in jetons:
+        try:
+            vue = _preparer_un(jeton)
+            if vue:
+                _chauffer(vue)
+        except Exception as exc:                     # Immich muet : la frise d'avant reste, la nuit suivante réessaie
+            log.warning("Frise de l'invitation non préparée : %s", exc)
+
+
+def _en_fond(travail, *args) -> None:
+    fil = threading.Thread(target=travail, args=args, daemon=True)
+    ETAT["fond"] = [f for f in ETAT["fond"] if f.is_alive()] + [fil]
+    fil.start()
+
+
+def _rafraichir_tout() -> None:
+    """La mise à jour de la nuit : les noms d'albums et les personnes sont relus, chaque frise refaite."""
+    ETAT["albums"].clear()
+    ETAT["toutes"] = None
+    _preparer([i["jeton"] for i in ETAT["base"].invitations()])
+    ETAT["nuit"] = datetime.now().isoformat(timespec="seconds")
+
+
+def _prochaine(heure: int, maintenant: datetime) -> datetime:
+    cible = maintenant.replace(hour=heure, minute=0, second=0, microsecond=0)
+    return cible if cible > maintenant else cible + timedelta(days=1)
+
+
+async def _chaque_nuit() -> None:
+    while True:
+        maintenant = datetime.now()
+        await asyncio.sleep((_prochaine(ETAT["cfg"].heure_frises, maintenant) - maintenant).total_seconds())
+        try:
+            await asyncio.to_thread(_rafraichir_tout)
+        except Exception as exc:
+            log.warning("Mise à jour de nuit des frises : %s", exc)
+
+
+def _oublier(jetons: list[str]) -> None:
+    """Une correction ou un changement d'hôtes : ces frises sont refaites tout de suite (en fond)."""
+    if not jetons:
+        return
+    ETAT["base"].oublier_frises(jetons)
+    for j in jetons:
+        ETAT["invites"].pop(j, None)
+    _en_fond(_preparer, jetons)
+
+
+def _invitation(jeton: str) -> dict:
+    """La frise de l'invitation : en mémoire, sinon dans la base ; calculée sur place seulement si elle n'est pas encore prête."""
+    if not ETAT["base"].invite(jeton):
+        ETAT["invites"].pop(jeton, None)
+        raise HTTPException(404, "Cette invitation n'existe pas ou a expiré.")
+    if jeton in ETAT["invites"]:
+        return ETAT["invites"][jeton]
+    garde_ = ETAT["base"].frise(jeton)
+    if garde_:
+        return _en_memoire(jeton, garde_[0])
+    vue = _preparer_un(jeton, refaire=False)
+    if not vue:
+        raise HTTPException(404, "Cette invitation n'existe pas ou a expiré.")
+    return vue
 
 
 @app.get("/api/reglages")
@@ -414,20 +528,21 @@ def regler(corps: dict = Body(...)):
     if inconnus:
         raise HTTPException(422, "Personne inconnue d'Immich.")
     ETAT["base"].poser_reglage("hotes", [{"id": i, "nom": connues[i]["name"].strip()} for i in dict.fromkeys(voulus)])
-    ETAT["invites"].clear()                          # les frises des chambres sont refaites avec les nouveaux hôtes
+    _oublier([i["jeton"] for i in ETAT["base"].invitations()])   # les frises des chambres sont refaites avec les nouveaux hôtes
     return reglages()
 
 
 @app.get("/api/chambres")
 def chambres():
     """0.6 : les pages préparées par Home Assistant, pour l'onglet « Chambres » du propriétaire (lecture seule)."""
-    sortie = []
+    sortie, pretes = [], ETAT["base"].preparees()
     for i in ETAT["base"].invitations():
         fin = (datetime.fromisoformat(i["expire"]).date() - timedelta(days=1)).isoformat()
         sortie.append({"chambre": i["chambre"], "jeton": i["jeton"], "du": i["du"], "au": fin,
                        "noms": [p["nom"] for p in i["personnes"]],
-                       "introuvables": [p["nom"] for p in i["personnes"] if not p.get("id")]})
-    return {"chambres": sortie}
+                       "introuvables": [p["nom"] for p in i["personnes"] if not p.get("id")],
+                       "prete_le": pretes.get(i["jeton"], "")})
+    return {"chambres": sortie, "heure_nuit": ETAT["cfg"].heure_frises}
 
 
 @app.get("/api/invite/{jeton}")
@@ -445,8 +560,6 @@ def album_invite(jeton: str, photo: str):
     # 0.12.1 : Immich ne dit pas qui est sur les photos d'un album : on croise avec les photos où un invité est reconnu.
     # Pas d'album, ou rien de commun : les photos de l'étape elle-même (celles que le compteur « 2 photos » annonce).
     a = ETAT["immich"].album_complet(photo)
-    if inv["_photos_gens"] is None:
-        inv["_photos_gens"] = {p["id"] for g in inv["_gens"] for p in ETAT["immich"].photos_de(g)}
     etape = list(dict.fromkeys(inv["_photos_etapes"].get(photo, []))) or [photo]
     dans_album = [p["id"] for p in (a or {}).get("photos", []) if not p["video"] and p["id"] in inv["_photos_gens"]]
     ids = list(dict.fromkeys(dans_album + [i for i in etape if i not in dans_album])) if dans_album else etape

@@ -27,6 +27,7 @@ class Base:
             CREATE TABLE IF NOT EXISTS reglages (cle TEXT PRIMARY KEY, valeur TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS invites (jeton TEXT PRIMARY KEY, chambre TEXT NOT NULL, personnes TEXT NOT NULL,
                                                 expire TEXT NOT NULL, cree_le TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS frises (jeton TEXT PRIMARY KEY, contenu TEXT NOT NULL, le TEXT NOT NULL);
         """)
         # 0.6 : date d'arrivée, pour l'onglet « Chambres » (bases de la 0.5 : colonne ajoutée)
         if "du" not in [l["name"] for l in self._c.execute("PRAGMA table_info(invites)")]:
@@ -90,6 +91,7 @@ class Base:
             jeton = secrets.token_urlsafe(24)
             self._c.execute("INSERT INTO invites (jeton, chambre, personnes, expire, cree_le, du) VALUES (?, ?, ?, ?, ?, ?)",
                             (jeton, chambre, corps, expire, maintenant, du))
+            self._c.execute("DELETE FROM frises WHERE jeton NOT IN (SELECT jeton FROM invites)")
             return jeton
 
     def reglage(self, cle: str, defaut=None):
@@ -114,3 +116,31 @@ class Base:
     def retirer_invites(self, chambre: str) -> None:
         with self._verrou, self._c:
             self._c.execute("DELETE FROM invites WHERE chambre = ?", (chambre,))
+            self._c.execute("DELETE FROM frises WHERE jeton NOT IN (SELECT jeton FROM invites)")
+
+    # ------------------------------------------------------------ 0.13 : frises des invités préparées d'avance
+    def frise(self, jeton: str) -> tuple[dict, str] | None:
+        """La frise déjà préparée pour cette invitation, et sa date de préparation."""
+        with self._verrou:
+            l = self._c.execute("SELECT contenu, le FROM frises WHERE jeton = ?", (jeton,)).fetchone()
+        return (json.loads(l["contenu"]), l["le"]) if l else None
+
+    def garder_frise(self, jeton: str, contenu: dict) -> str:
+        le = datetime.now().isoformat(timespec="seconds")
+        with self._verrou, self._c:
+            if self._c.execute("SELECT 1 FROM invites WHERE jeton = ?", (jeton,)).fetchone():   # pas pour une invitation retirée entre-temps
+                self._c.execute("INSERT OR REPLACE INTO frises VALUES (?, ?, ?)",
+                                (jeton, json.dumps(contenu, ensure_ascii=False), le))
+            self._c.execute("DELETE FROM frises WHERE jeton NOT IN (SELECT jeton FROM invites)")
+        return le
+
+    def oublier_frises(self, jetons: list[str]) -> None:
+        with self._verrou, self._c:
+            self._c.executemany("DELETE FROM frises WHERE jeton = ?", [(j,) for j in jetons])
+
+    def preparees(self) -> dict[str, str]:
+        """jeton → date de préparation, pour les invitations encore valables."""
+        with self._verrou:
+            return {l["jeton"]: l["le"] for l in self._c.execute(
+                "SELECT f.jeton, f.le FROM frises f JOIN invites i ON i.jeton = f.jeton WHERE i.expire > ?",
+                (datetime.now().isoformat(timespec="seconds"),))}

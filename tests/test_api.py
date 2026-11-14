@@ -522,3 +522,57 @@ def test_0_12_l_album_d_une_photo(monde, c):
     assert a["nom"] == "" and set(p["id"] for p in a["photos"]) == {ident("bapteme1"), ident("bapteme2")}   # la vidéo n'est pas servie
     assert all(client.get(f"/api/invite/{jeton}/vignette/{p['id']}?petite=true").status_code == 200 for p in a["photos"])
 
+
+
+def _attendre_le_fond():
+    for fil in list(main.ETAT["fond"]):
+        fil.join(timeout=10)
+
+
+def test_la_frise_est_prete_des_que_l_invite_est_saisi(monde):
+    """0.13 : Home Assistant pose l'invitation → la frise et ses photos phares sont préparées tout de suite, en fond ;
+    l'invité qui ouvre la page ne fait plus rien demander à Immich."""
+    client, faux = monde
+    h = avec_jeton_ha()
+    jeton = sejour(client, h, noms=["Camille ROUSSEL"])["chemin"].split("/")[-1]
+    _attendre_le_fond()
+    garde_, le = main.ETAT["base"].frise(jeton)
+    assert le and garde_["chacun"][0]["etapes"] == 3
+    phare = garde_["chacun"][0]["chapitres"][0]["etapes"][0]["phare"]
+    assert main.ETAT["cache"].lire(f"{phare}-preview")                                  # photo phare déjà sur disque
+    assert client.get("/health").json()["frises_pretes"] == 1
+    main.ETAT["invites"].clear()                                                         # comme après un redémarrage
+    avant = len(faux.demandes)
+    r = client.get(f"/api/invite/{jeton}").json()
+    assert r["chacun"][0]["etapes"] == 3
+    assert client.get(f"/api/invite/{jeton}/vignette/{phare}").status_code == 200
+    assert len(faux.demandes) == avant                                                   # rien relu dans Immich
+    assert sejour(client, h, noms=["Camille ROUSSEL"])["chemin"].endswith(jeton)         # HA renvoie la même chose : rien n'est refait
+    _attendre_le_fond()
+    assert len(faux.demandes) == avant
+
+
+def test_les_photos_ajoutees_arrivent_la_nuit(monde):
+    client, faux = monde
+    h = avec_jeton_ha()
+    jeton = sejour(client, h, noms=["Camille ROUSSEL"])["chemin"].split("/")[-1]
+    _attendre_le_fond()
+    faux.photos[CAMILLE].append(photo("ski", "2022-02-10T10:00:00", "2022/2022-02-10 Vacances au ski"))
+    main.ETAT["invites"].clear()
+    assert client.get(f"/api/invite/{jeton}").json()["chacun"][0]["etapes"] == 3           # pas avant la nuit
+    main._rafraichir_tout()
+    noms = [e["nom"] for ch in client.get(f"/api/invite/{jeton}").json()["chacun"][0]["chapitres"] for e in ch["etapes"]]
+    assert "Vacances au ski" in noms and main.ETAT["nuit"]
+    assert c_chambres(client)["chambres"][0]["prete_le"]
+
+
+def c_chambres(client):
+    assert client.post("/api/connexion", json={"mot_de_passe": MDP}).status_code == 200
+    return client.get("/api/chambres").json()
+
+
+def test_l_heure_de_la_nuit():
+    from datetime import datetime
+    assert main._prochaine(2, datetime(2026, 11, 14, 1, 30)) == datetime(2026, 11, 14, 2, 0)
+    assert main._prochaine(2, datetime(2026, 11, 14, 2, 0)) == datetime(2026, 11, 15, 2, 0)
+    assert main._prochaine(2, datetime(2026, 11, 14, 15, 57)) == datetime(2026, 11, 15, 2, 0)

@@ -23,6 +23,7 @@ class Config:
     jeton_ha: str = ""               # 0.5 : jeton de Home Assistant pour /ha/sejour ; vide : adresse fermée
     muets: tuple[str, ...] = ()      # noms de dossier qui ne disent rien, en plus de la liste par défaut
     cache_mo: int = 500              # 0.10 : place des vignettes gardées sur disque (Mo) ; 0 : pas de cache
+    heure_frises: int = 2            # 0.13 : heure de la mise à jour nocturne des frises des invités (heure du conteneur, TZ)
     attente_connexion: bool = True   # délai anti-essais ; coupé dans les tests
 
 
@@ -46,5 +47,6 @@ def charger() -> Config:
         jeton_ha=os.environ.get("SILLAGE_JETON_HA", "").strip(),
         muets=tuple(m.strip() for m in os.environ.get("SILLAGE_DOSSIERS_MUETS", "").split(",") if m.strip()),
         cache_mo=int(os.environ.get("SILLAGE_CACHE_MO") or 500) if (os.environ.get("SILLAGE_CACHE_MO") or "500").strip().isdigit() else 500,
+        heure_frises=int(h) % 24 if (h := (os.environ.get("SILLAGE_HEURE_FRISES") or "2").strip()).isdigit() else 2,
         mots=tuple(m.strip().lower() for m in os.environ.get("SILLAGE_MOTS", "").split(",") if m.strip()),
     )

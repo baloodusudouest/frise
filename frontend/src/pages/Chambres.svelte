@@ -11,13 +11,21 @@
   let liste = $state(null)
   let erreur = $state('')
   let rang = $state(0)
+  let heureNuit = $state(2)
+  // 0.13 : la frise est préparée d'avance ; on dit quand
+  const prete = (iso) => {
+    if (!iso) return 'Frise en préparation…'
+    const d = new Date(iso)
+    const jour = d.toDateString() === new Date().toDateString() ? "aujourd'hui" : 'le ' + d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
+    return `Frise préparée ${jour} à ${d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} · refaite chaque nuit à ${heureNuit} h avec les nouvelles photos`
+  }
   const vue = $derived(liste?.[Math.min(rang, liste.length - 1)] || null)
   const nomChambre = (c) => 'Chambre ' + c.charAt(0).toUpperCase() + c.slice(1)
   const et = (noms) => (noms.length < 2 ? noms.join('') : noms.slice(0, -1).join(', ') + ' et ' + noms.at(-1))
   const quand = (c) => (c.du ? periode(c.du, c.au) : `jusqu'au ${periode(c.au)}`)
 
   onMount(async () => {
-    try { liste = (await api.get('/api/chambres')).chambres }
+    try { const r = await api.get('/api/chambres'); liste = r.chambres; heureNuit = r.heure_nuit ?? 2 }
     catch (err) { if (err.statut === 401) ondeconnecte?.(); else erreur = 'Sillage ne répond pas pour l\'instant.' }
   })
 </script>
@@ -51,6 +59,7 @@
     {#if vue.introuvables.length}
       <p class="mt-1 text-sm text-destructive">{et(vue.introuvables)} : pas de personne de ce nom dans Immich. Le nom doit s'écrire comme dans Immich, ou la personne a un homonyme.</p>
     {/if}
+    <p class="mt-1 text-xs text-muted-foreground">{prete(vue.prete_le)}</p>
     <p class="mt-2 text-xs text-muted-foreground">Ce qu'affichera le tableau de bord de la chambre. Lecture seule : Home Assistant crée et retire cette page.</p>
   </section>
   {#key vue.jeton}

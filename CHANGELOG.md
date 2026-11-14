@@ -1,5 +1,12 @@
 # Journal des versions
 
+## 0.13.0 — 14 novembre 2026
+- **Frises des invités prêtes d'avance.** Dès que Home Assistant pose les invités d'une chambre (`/ha/sejour`), Sillage prépare leur frise en fond, la garde dans sa base (table `frises`) et lit d'avance les photos phares dans le cache sur disque. La page de la chambre s'affiche alors sans rien demander à Immich, même après un redémarrage.
+- **Mise à jour une fois par nuit**, à 2 h (heure du conteneur, `TZ` de la stack ; réglable par `SILLAGE_HEURE_FRISES`) : les frises de toutes les invitations en cours sont refaites avec les photos ajoutées, les noms d'albums relus.
+- Une correction faite par le propriétaire (photo retirée, étape masquée…) ou un changement d'hôtes refait tout de suite les frises concernées.
+- Au démarrage, une invitation sans frise (base d'avant la 0.13) est préparée.
+- Onglet Chambres : « Frise préparée aujourd'hui à … · refaite chaque nuit à 2 h ». `/health` donne `frises_pretes`.
+
 
 
 
