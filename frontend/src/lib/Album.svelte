@@ -2,7 +2,8 @@
   // 0.12 : toutes les photos de l'album d'une photo, dans Sillage (propriétaire ou invité).
   // charger() → { nom, photos: [{ id, video }], total } ; image(id, grande) → adresse de la vignette.
   // video(id) → adresse de lecture (propriétaire seulement) ; sans elle, une vidéo s'affiche en image.
-  let { charger, image, video = null, onferme } = $props()
+  // secours : le titre quand il n'y a pas d'album (l'invité voit alors les photos de l'étape)
+  let { charger, image, video = null, onferme, secours = '' } = $props()
   let album = $state(null)
   let erreur = $state('')
   let vue = $state(null)       // index de la photo ouverte en grand dans l'album
@@ -20,11 +21,11 @@
 
 <svelte:window onkeydown={touche} />
 
-<div class="album" role="dialog" aria-modal="true" aria-label={album?.nom ? 'Album ' + album.nom : 'Album'}>
+<div class="album" role="dialog" aria-modal="true" aria-label={album?.nom ? 'Album ' + album.nom : secours || 'Album'}>
   <header>
     <div class="titre">
-      <p class="sur">Album</p>
-      <h2>{album ? album.nom || 'Sans nom' : 'Lecture…'}</h2>
+      <p class="sur">{album && !album.nom && secours ? 'Photos' : 'Album'}</p>
+      <h2>{album ? album.nom || secours || 'Sans nom' : 'Lecture…'}</h2>
       {#if album}<p class="compte">{album.photos.length} photo{album.photos.length > 1 ? 's' : ''}{album.total > album.photos.length ? ` sur ${album.total}` : ''}</p>{/if}
     </div>
     <button type="button" class="rond" aria-label="Fermer l'album" onclick={() => onferme?.()}>✕</button>

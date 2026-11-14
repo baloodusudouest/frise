@@ -513,3 +513,12 @@ def test_0_12_l_album_d_une_photo(monde, c):
     assert client.get(f"/api/invite/{jeton}/vignette/{ident('mariage1')}?petite=true").status_code == 200
     assert client.get(f"/api/invite/{jeton}/vignette/{ident('tiers')}").status_code == 404
     assert client.get(f"/api/invite/{jeton}/album/{ident('tiers')}").status_code == 404   # pas une photo phare
+    # 0.12.1 : une étape hors de tout album (nom tiré du dossier) : « Voir l'album » montre ses propres photos
+    faux.albums = {}
+    main.ETAT["invites"].clear()
+    r = client.get(f"/api/invite/{jeton}").json()
+    bapteme = next(e for ch in r["chacun"][0]["chapitres"] for e in ch["etapes"] if e["nom"] == "Baptême de Camille")
+    a = client.get(f"/api/invite/{jeton}/album/{bapteme['phare']}").json()
+    assert a["nom"] == "" and set(p["id"] for p in a["photos"]) == {ident("bapteme1"), ident("bapteme2")}   # la vidéo n'est pas servie
+    assert all(client.get(f"/api/invite/{jeton}/vignette/{p['id']}?petite=true").status_code == 200 for p in a["photos"])
+

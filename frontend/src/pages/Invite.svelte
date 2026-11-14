@@ -144,7 +144,8 @@
 {/if}
 {#if album}
   <Album charger={() => fetch(`/api/invite/${encodeURIComponent(jeton)}/album/${album}`).then((r) => { if (!r.ok) throw new Error('Album indisponible.'); return r.json() })}
-         image={(id, g) => `/api/invite/${encodeURIComponent(jeton)}/vignette/${id}${g ? '' : '?petite=true'}`} onferme={() => (album = null)} />
+         image={(id, g) => `/api/invite/${encodeURIComponent(jeton)}/vignette/${id}${g ? '' : '?petite=true'}`}
+         secours={grande ? grande.nom || quandDit(grande) : ''} onferme={() => (album = null)} />
 {/if}
 
 <style>

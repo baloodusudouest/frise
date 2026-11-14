@@ -316,11 +316,16 @@ def sejour(corps: dict = Body(...)):
     return {"chemin": f"/invite/{jeton}", "trouves": [t["nom"] for t in trouves], "manquants": manquants, "expire": expire}
 
 
-def _pour_invite(c: dict) -> dict:
+def _pour_invite(c: dict, photos_etapes: dict | None = None) -> dict:
     """Ce qu'un invité voit d'un chemin : les étapes visibles, la photo phare de chacune. Ni corrections,
-    ni photos mises de côté, ni lien vers Immich."""
+    ni photos mises de côté, ni lien vers Immich. 0.12.1 : `photos_etapes` (phare → photos de l'étape, images seules)
+    est rempli à part, pour « Voir l'album » ; il ne part jamais tel quel vers l'invité."""
     chapitres = []
     for ch in c["chapitres"]:
+        if photos_etapes is not None:
+            for e in ch["etapes"]:
+                if not e["masquee"]:
+                    photos_etapes.setdefault(e["phare"], []).extend(p["id"] for p in e.get("photos", []) if not p["video"])
         etapes = [{k: e[k] for k in ("cle", "nom", "debut", "fin", "quand", "fois", "age", "nombre", "phare", "temps_fort")}
                   for e in ch["etapes"] if not e["masquee"]]
         if etapes:
@@ -332,7 +337,7 @@ def _personnes_sur(photo: dict) -> set[str]:
     return {x["id"] for x in photo.get("people") or [] if x.get("id")}
 
 
-def _ensemble(gens: list[dict], fiches: dict, lire_marques, cfg) -> dict | None:
+def _ensemble(gens: list[dict], fiches: dict, lire_marques, cfg, photos_etapes: dict | None = None) -> dict | None:
     """0.7 : la frise de plusieurs invités. Les moments communs (photos où ils sont tous), et pour chacun ses photos
     seul ou avec les hôtes de la maison (réglage « hôtes ») : une photo où il y a quelqu'un d'autre n'est pas prise.
     Chaque étape dit à qui elle est (`qui` : « ensemble » ou le rang de l'invité), par décennie du calendrier."""
@@ -354,7 +359,7 @@ def _ensemble(gens: list[dict], fiches: dict, lire_marques, cfg) -> dict | None:
         if not photos:
             continue
         for ch in _pour_invite(calcul.calculer(fiche, photos, _noms_d_albums, cfg.mots, marques, cfg.muets,
-                                               decennies=True))["chapitres"]:
+                                               decennies=True), photos_etapes)["chapitres"]:
             dest = chapitres.setdefault(ch["cle"], {"cle": ch["cle"], "titre": ch["titre"], "etapes": []})
             dest["etapes"] += [{**e, "cle": f"{qui}-{e['cle']}", "qui": qui} for e in ch["etapes"]]
     if not any(ch["etapes"] for ch in chapitres.values()):
@@ -378,19 +383,20 @@ def _invitation(jeton: str) -> dict:
     lire_marques = ETAT["base"].marques
     cfg = ETAT["cfg"]
 
-    commun, chacun = None, []
+    commun, chacun, photos_etapes = None, [], {}
     if len(gens) > 1:
-        commun = _ensemble(gens, fiches, lire_marques, cfg)
+        commun = _ensemble(gens, fiches, lire_marques, cfg, photos_etapes)
     elif gens:
         g = gens[0]
         fiche = {**fiches.get(g["id"], {"id": g["id"]}), "name": g["nom"]}
         c = _pour_invite(calcul.calculer(fiche, ETAT["immich"].photos_de(g["id"]), _noms_d_albums, cfg.mots,
-                                         lire_marques(g["id"]), cfg.muets))
+                                         lire_marques(g["id"]), cfg.muets), photos_etapes)
         chacun = [c] if c["etapes"] else []
     resultat = {"invites": [p["nom"] for p in inv["personnes"]], "commun": commun, "chacun": chacun,
                 "accueil": commun is None and not chacun}
     phares = {e["phare"] for c in ([commun] if commun else []) + chacun for ch in c["chapitres"] for e in ch["etapes"]}
-    ETAT["invites"][jeton] = (time.monotonic(), {**resultat, "_phares": phares, "_gens": [g["id"] for g in gens], "_album": set()})
+    ETAT["invites"][jeton] = (time.monotonic(), {**resultat, "_phares": phares, "_gens": [g["id"] for g in gens], "_album": set(),
+                                                    "_photos_etapes": photos_etapes, "_photos_gens": None})
     return ETAT["invites"][jeton][1]
 
 
@@ -436,13 +442,16 @@ def album_invite(jeton: str, photo: str):
     inv = _invitation(jeton)
     if not UUID.match(photo) or photo not in inv["_phares"]:
         raise HTTPException(404, "Photo inconnue de cette invitation.")
+    # 0.12.1 : Immich ne dit pas qui est sur les photos d'un album : on croise avec les photos où un invité est reconnu.
+    # Pas d'album, ou rien de commun : les photos de l'étape elle-même (celles que le compteur « 2 photos » annonce).
     a = ETAT["immich"].album_complet(photo)
-    if not a:
-        return {"nom": "", "photos": [], "total": 0}
-    gens = set(inv["_gens"])
-    garder = [{"id": p["id"], "video": False} for p in a["photos"] if not p["video"] and gens & set(p["personnes"])]
-    inv["_album"].update(p["id"] for p in garder)
-    return {"nom": a["nom"], "photos": garder, "total": len(garder)}
+    if inv["_photos_gens"] is None:
+        inv["_photos_gens"] = {p["id"] for g in inv["_gens"] for p in ETAT["immich"].photos_de(g)}
+    etape = list(dict.fromkeys(inv["_photos_etapes"].get(photo, []))) or [photo]
+    dans_album = [p["id"] for p in (a or {}).get("photos", []) if not p["video"] and p["id"] in inv["_photos_gens"]]
+    ids = list(dict.fromkeys(dans_album + [i for i in etape if i not in dans_album])) if dans_album else etape
+    inv["_album"].update(ids)
+    return {"nom": a["nom"] if a and dans_album else "", "photos": [{"id": i, "video": False} for i in ids], "total": len(ids)}
 
 
 @app.get("/api/invite/{jeton}/vignette/{photo}")

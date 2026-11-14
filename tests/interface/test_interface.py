@@ -256,6 +256,14 @@ def test_050_l_invite_voit_son_chemin_sans_mot_de_passe(page):
     page.locator(".etape .ouvrir").first.click()                                        # 0.8 : la photo phare en grand
     page.get_by_role("dialog").wait_for()
     assert page.locator(".grand img").evaluate("i => i.getBoundingClientRect().width") > page.locator(".etape img").first.evaluate("i => i.getBoundingClientRect().width") * 0.9
+    # 0.12.1 : « Voir l'album » montre au moins les photos de l'étape, même hors de tout album
+    page.get_by_role("button", name="Voir l'album").click()
+    grille = page.locator(".album .grille li")
+    grille.first.wait_for()
+    assert grille.count() >= 1
+    for src in page.locator(".album .grille img").evaluate_all("els => els.map(e => e.src)"):
+        assert page.request.get(src).status == 200
+    page.keyboard.press("Escape")                                                       # ferme l'album
     page.keyboard.press("Escape")
     assert page.get_by_role("dialog").count() == 0
     sans_debordement(page)

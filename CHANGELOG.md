@@ -3,6 +3,9 @@
 
 
 
+
+## 0.12.1 — 14 novembre 2026
+- **« Voir l'album » restait vide pour les invités.** Immich ne dit pas qui est sur les photos d'un album : le filtre « un invité est reconnu » ne gardait rien. Les photos de l'album sont maintenant croisées avec celles où un invité est reconnu ; et quand l'étape n'est dans aucun album (nom tiré du dossier, « Noël 2023 »), « Voir l'album » montre les photos de l'étape elle-même — celles que le compteur annonce. Le titre est alors celui de l'étape.
 ## 0.12.0 — 14 novembre 2026
 - **Voir tout l'album d'une photo, dans Sillage.** Sur ta page, une photo ouverte en grand a un bouton « Voir tout l'album » : toutes les photos de l'album qui la contient, par date, en grille ; un toucher en ouvre une en grand (flèches, glisser, vidéos lues) ; Échap revient à la grille puis à la photo.
 - **Pour les invités aussi** (carte de Home Assistant, « Ouvrir en grand ») : « Voir l'album » sur la photo en grand. L'invité ne voit que les photos de l'album **où l'un des invités est reconnu** : un album peut contenir d'autres gens et d'autres moments. Ces photos ne sont servies que par cette invitation, et seulement après l'ouverture de l'album.
