@@ -4,6 +4,7 @@
   // Deux invités : leur chemin commun (par décennie) ; sans photo ensemble, le chemin de chacun.
   import { onMount } from 'svelte'
   import { periode, quandDit, foisDit } from '$lib/dates.js'
+  import Album from '$lib/Album.svelte'
 
   // apercu (0.6) : la même page, montrée au propriétaire dans l'onglet « Chambres »
   let { jeton, apercu = false } = $props()
@@ -12,6 +13,7 @@
   let tout = $state(false)
   let rang = $state(0)
   let grande = $state(null) // 0.8 : l'étape dont la photo phare est ouverte en grand
+  let album = $state(null)  // 0.12 : la photo phare dont on regarde l'album
   // 0.11 : plusieurs invités : un clic sur un prénom ou sur « Ensemble » ne garde que ces étapes (plusieurs à la fois) ; rien de choisi = tout
   let choisis = $state([])
   const basculer = (k) => (choisis = choisis.includes(k) ? choisis.filter((x) => x !== k) : [...choisis, k])
@@ -58,7 +60,7 @@
   })
 </script>
 
-<svelte:window onscroll={mesurer} onresize={mesurer} onkeydown={(ev) => { if (ev.key === 'Escape') grande = null }} />
+<svelte:window onscroll={mesurer} onresize={mesurer} onkeydown={(ev) => { if (ev.key === 'Escape' && !album) grande = null }} />
 
 <svelte:element this={apercu ? 'div' : 'main'} class={apercu ? '' : 'mx-auto max-w-5xl px-[max(1rem,env(safe-area-inset-left))] pt-[calc(1.25rem+env(safe-area-inset-top))] pb-[calc(2rem+env(safe-area-inset-bottom))]'}>
   {#if erreur}
@@ -137,7 +139,12 @@
       <figcaption><strong class:plume={!!grande.nom}>{grande.nom || quandDit(grande)}</strong>{#if grande.nom}<small>{quandDit(grande)}</small>{/if}</figcaption>
     </figure>
     <button type="button" class="fermer" aria-label="Fermer" onclick={() => (grande = null)}>✕</button>
+    <button type="button" class="voir-album" onclick={() => (album = grande.phare)}>Voir l'album</button>
   </div>
+{/if}
+{#if album}
+  <Album charger={() => fetch(`/api/invite/${encodeURIComponent(jeton)}/album/${album}`).then((r) => { if (!r.ok) throw new Error('Album indisponible.'); return r.json() })}
+         image={(id, g) => `/api/invite/${encodeURIComponent(jeton)}/vignette/${id}${g ? '' : '?petite=true'}`} onferme={() => (album = null)} />
 {/if}
 
 <style>
@@ -215,6 +222,7 @@
   .grand figcaption { display: grid; justify-items: center; color: var(--foreground); text-align: center; }
   .grand figcaption .plume { font-size: 2rem; color: var(--app); }
   .grand small { color: var(--muted-foreground); }
+  .voir-album { position: absolute; z-index: 1; top: calc(0.5rem + env(safe-area-inset-top)); left: calc(0.5rem + env(safe-area-inset-left)); min-height: 2.75rem; padding: 0 1rem; border-radius: 999px; border: 1px solid var(--app); background: var(--card); color: inherit; font: inherit; cursor: pointer; }
   .fermer { position: absolute; top: calc(0.5rem + env(safe-area-inset-top)); right: calc(0.5rem + env(safe-area-inset-right)); width: 2.75rem; height: 2.75rem; border-radius: 50%; border: 1px solid var(--border); background: var(--card); font-size: 1.1rem; }
   .accueil { min-height: 40dvh; display: grid; place-content: center; gap: 0.75rem; text-align: center; padding: 2rem 1rem; }
   .accueil h1 { font-size: 3.4rem; margin: 0; }

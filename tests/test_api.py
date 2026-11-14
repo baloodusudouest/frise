@@ -488,3 +488,28 @@ def test_noms_d_albums_nettoyes():
     assert nom_d_album("2007 - Soirée d'été") == "Soirée d'été"
     assert nom_d_album("1998 Numérisation de la famille") == "" and nom_d_album("Scans de grand-mère") == ""
     assert nom_d_album("50 ans de mariage") == "50 ans de mariage" and nom_d_album("Apéro 2021") == "Apéro 2021"
+
+
+def test_0_12_l_album_d_une_photo(monde, c):
+    """Le propriétaire voit tout l'album ; l'invité, seulement les photos de l'album où il est reconnu."""
+    client, faux = monde
+    nom = "Mariage de Camille et Hugo"
+    faux.albums = {ident("mariage1"): nom, ident("mariage2"): nom, ident("tiers"): nom}
+    faux.photos[ANONYME] = [photo("tiers", "2019-06-15T20:00:00")]                      # dans l'album, sans Camille
+    assert c.get(f"/api/album/{ident('tiers')}").status_code == 404                       # pas encore une photo du chemin
+    c.get(f"/api/chemin/{CAMILLE}")
+    a = c.get(f"/api/album/{ident('mariage2')}").json()
+    assert a["nom"] == nom and [p["id"] for p in a["photos"]] == [ident("mariage1"), ident("tiers"), ident("mariage2")]  # par date
+    assert c.get(f"/api/vignette/{ident('tiers')}").status_code == 200                    # ouverte par l'album
+    assert c.get(f"/api/album/{ident('plage')}").json() == {"nom": "", "photos": [], "total": 0}
+    assert {(m, ch) for m, ch in faux.demandes if m != "GET"} <= {("POST", "/search/metadata")}   # rien d'écrit dans Immich
+    # L'invité
+    jeton = sejour(client, avec_jeton_ha(), noms=["Camille ROUSSEL"])["chemin"].split("/")[-1]
+    r = client.get(f"/api/invite/{jeton}").json()
+    phares = {e["phare"] for ch in r["chacun"][0]["chapitres"] for e in ch["etapes"]}
+    phare = next(p for p in phares if p in faux.albums)
+    a = client.get(f"/api/invite/{jeton}/album/{phare}").json()
+    assert a["nom"] == nom and ident("tiers") not in [p["id"] for p in a["photos"]] and ident("mariage1") in [p["id"] for p in a["photos"]]
+    assert client.get(f"/api/invite/{jeton}/vignette/{ident('mariage1')}?petite=true").status_code == 200
+    assert client.get(f"/api/invite/{jeton}/vignette/{ident('tiers')}").status_code == 404
+    assert client.get(f"/api/invite/{jeton}/album/{ident('tiers')}").status_code == 404   # pas une photo phare

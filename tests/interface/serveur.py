@@ -43,16 +43,13 @@ def vie() -> FauxImmich:
         + serie("anniv", "2022-03-14", 8, "2022/2022-03-14 Anniversaire 35 ans")
         + [photo("trop-tot", "1975-01-01T10:00:00")])
     faux.photos[CAMILLE][10 + 4]["type"] = "VIDEO"
-    faux.albums = {}
+    # 0.12 : les photos du mariage forment un album (le faux Immich sert aussi /albums/{id} et ses photos)
+    faux.albums = {p["id"]: "Mariage de Camille et Hugo" for p in faux.photos[CAMILLE] if "mariage" in p["originalPath"]}
     reponse = faux.repondre
 
     def repondre(demande: httpx.Request) -> httpx.Response:
         if demande.url.path.endswith("/thumbnail"):
             return httpx.Response(200, content=dessin(demande.url.path), headers={"content-type": "image/svg+xml"})
-        if demande.url.path == "/api/albums":
-            if demande.url.params.get("assetId", "") in {p["id"] for p in faux.photos[CAMILLE] if "mariage" in p["originalPath"]}:
-                return httpx.Response(200, json=[{"albumName": "Mariage de Camille et Hugo"}])
-            return httpx.Response(200, json=[])
         return reponse(demande)
     faux.repondre = repondre
     return faux

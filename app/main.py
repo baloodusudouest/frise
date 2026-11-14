@@ -390,7 +390,7 @@ def _invitation(jeton: str) -> dict:
     resultat = {"invites": [p["nom"] for p in inv["personnes"]], "commun": commun, "chacun": chacun,
                 "accueil": commun is None and not chacun}
     phares = {e["phare"] for c in ([commun] if commun else []) + chacun for ch in c["chapitres"] for e in ch["etapes"]}
-    ETAT["invites"][jeton] = (time.monotonic(), {**resultat, "_phares": phares})
+    ETAT["invites"][jeton] = (time.monotonic(), {**resultat, "_phares": phares, "_gens": [g["id"] for g in gens], "_album": set()})
     return ETAT["invites"][jeton][1]
 
 
@@ -429,12 +429,29 @@ def invitation(jeton: str):
     return {k: v for k, v in _invitation(jeton).items() if not k.startswith("_")}
 
 
-@app.get("/api/invite/{jeton}/vignette/{photo}")
-def vignette_invite(jeton: str, photo: str):
-    """Seules les photos phares du chemin de l'invitation sont servies."""
-    if not UUID.match(photo) or photo not in _invitation(jeton)["_phares"]:
+@app.get("/api/invite/{jeton}/album/{photo}")
+def album_invite(jeton: str, photo: str):
+    """0.12 : l'album d'une photo phare, pour l'invité — seulement les photos de l'album où l'un des invités est
+    reconnu (l'album peut contenir d'autres gens, d'autres moments)."""
+    inv = _invitation(jeton)
+    if not UUID.match(photo) or photo not in inv["_phares"]:
         raise HTTPException(404, "Photo inconnue de cette invitation.")
-    return _vignette(photo, "preview")
+    a = ETAT["immich"].album_complet(photo)
+    if not a:
+        return {"nom": "", "photos": [], "total": 0}
+    gens = set(inv["_gens"])
+    garder = [{"id": p["id"], "video": False} for p in a["photos"] if not p["video"] and gens & set(p["personnes"])]
+    inv["_album"].update(p["id"] for p in garder)
+    return {"nom": a["nom"], "photos": garder, "total": len(garder)}
+
+
+@app.get("/api/invite/{jeton}/vignette/{photo}")
+def vignette_invite(jeton: str, photo: str, petite: bool = False):
+    """Seules les photos phares du chemin de l'invitation sont servies (0.12 : et celles de leurs albums déjà ouverts)."""
+    inv = _invitation(jeton)
+    if not UUID.match(photo) or (photo not in inv["_phares"] and photo not in inv["_album"]):
+        raise HTTPException(404, "Photo inconnue de cette invitation.")
+    return _vignette(photo, "thumbnail" if petite else "preview")
 
 
 # ================================================================ images (derrière la session)
@@ -467,6 +484,18 @@ def vignette(photo: str, grande: bool = False):
     if not UUID.match(photo) or photo not in ETAT["connues"]:
         raise HTTPException(404, "Photo inconnue de Sillage.")
     return _vignette(photo, "preview" if grande else "thumbnail")
+
+
+@app.get("/api/album/{photo}")
+def album(photo: str):
+    """0.12 : toutes les photos de l'album qui contient cette photo du chemin ; elles deviennent lisibles par Sillage."""
+    if not UUID.match(photo) or photo not in ETAT["connues"]:
+        raise HTTPException(404, "Photo inconnue de Sillage.")
+    a = ETAT["immich"].album_complet(photo)
+    if not a:
+        return {"nom": "", "photos": [], "total": 0}
+    ETAT["connues"].update({p["id"]: ETAT["connues"].get(p["id"]) or p["checksum"] for p in a["photos"]})
+    return {"nom": a["nom"], "total": a["total"], "photos": [{"id": p["id"], "video": p["video"]} for p in a["photos"]]}
 
 
 @app.get("/api/video/{photo}")

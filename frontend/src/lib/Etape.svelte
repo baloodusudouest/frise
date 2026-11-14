@@ -6,9 +6,12 @@
   import Play from '@lucide/svelte/icons/play'
   import Pencil from '@lucide/svelte/icons/pencil'
   import Star from '@lucide/svelte/icons/star'
+  import Album from './Album.svelte'
+  import { api } from './api.js'
   import { ageDit, periode, quandDit, foisDit } from '$lib/dates.js'
 
   let { etape, immich = '', portImmich = 0, onferme, oncorrige } = $props()
+  let album = $state(null)   // 0.12 : la photo dont on ouvre l'album
   // Immich dans le navigateur : l'adresse réglée, sinon le même hôte que Sillage sur le port d'Immich (en http).
   // Ce lien fait partie des gestes de correction : il est pour le propriétaire, pas pour une future vue d'invité.
   const adresseImmich = $derived(immich || (portImmich && location.protocol === 'http:' ? `http://${location.hostname}:${portImmich}` : ''))
@@ -32,6 +35,7 @@
   const aller = (pas) => { grande = (grande + pas + etape.photos.length) % etape.photos.length }
 
   function touche(e) {
+    if (album) return                    // 0.12 : l'album ouvert garde les touches pour lui
     if (e.key === 'Escape') { e.preventDefault(); grande === null ? onferme?.() : (grande = null) }
     else if (grande !== null && e.key === 'ArrowRight') aller(1)
     else if (grande !== null && e.key === 'ArrowLeft') aller(-1)
@@ -108,8 +112,13 @@
           {#if adresseImmich}<a href={adresseImmich + '/photos/' + p.id} target="_blank" rel="noopener">Ouvrir dans Immich</a>{/if}
         </div>
       {/if}
+      <button type="button" class="voir-album" onclick={() => (album = p.id)}>Voir tout l'album</button>
       <p class="pied">{grande + 1} / {etape.photos.length}{p.video ? ' · vidéo' : ''}</p>
     </div>
+  {/if}
+  {#if album}
+    <Album charger={() => api.get('/api/album/' + album)} image={(id, g) => '/api/vignette/' + id + (g ? '?grande=true' : '')}
+           video={(id) => '/api/video/' + id} onferme={() => (album = null)} />
   {/if}
 </dialog>
 
@@ -136,6 +145,8 @@
   /* Le compteur passe sous les boutons et ne prend pas les clics : il recouvrait la croix. */
   .pied { pointer-events: none; z-index: 0; position: absolute; top: calc(1.4rem + env(safe-area-inset-top, 0px)); left: 0; right: 0; margin: 0; text-align: center; font-size: 0.85rem; color: #d8d2c8; text-shadow: 0 1px 3px #000; }
   .rond[aria-pressed='true'] { border-color: var(--app); color: var(--app); }
+  /* 0.12 : en haut à gauche, face à la croix */
+  .voir-album { position: absolute; z-index: 2; top: calc(0.75rem + env(safe-area-inset-top, 0px)); left: max(0.75rem, env(safe-area-inset-left, 0px)); min-height: 2.75rem; padding: 0 0.95rem; border-radius: 999px; border: 1px solid #a98fd8; background: rgb(0 0 0 / 0.6); color: #fff; font-size: 0.88rem; cursor: pointer; }
   .correction { display: grid; gap: 0.6rem; padding: 0.9rem max(1rem, env(safe-area-inset-right, 0px)) 1rem max(1rem, env(safe-area-inset-left, 0px)); border-bottom: 1px solid var(--border); background: var(--card); }
   .correction label { font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted-foreground); }
   .ligne { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }

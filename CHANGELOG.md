@@ -2,6 +2,11 @@
 
 
 
+
+## 0.12.0 — 14 novembre 2026
+- **Voir tout l'album d'une photo, dans Sillage.** Sur ta page, une photo ouverte en grand a un bouton « Voir tout l'album » : toutes les photos de l'album qui la contient, par date, en grille ; un toucher en ouvre une en grand (flèches, glisser, vidéos lues) ; Échap revient à la grille puis à la photo.
+- **Pour les invités aussi** (carte de Home Assistant, « Ouvrir en grand ») : « Voir l'album » sur la photo en grand. L'invité ne voit que les photos de l'album **où l'un des invités est reconnu** : un album peut contenir d'autres gens et d'autres moments. Ces photos ne sont servies que par cette invitation, et seulement après l'ouverture de l'album.
+- Sillage n'écrit toujours rien dans Immich (lecture des albums seulement). Une photo dans aucun album : la page le dit.
 ## 0.11.0 — 14 novembre 2026
 - **Page d'invité à plusieurs : filtrer par personne.** Les prénoms et « Ensemble » de la légende sont maintenant des boutons : un clic ne garde que les étapes de cette personne (ou des moments ensemble), un second clic retire le filtre ; on peut en choisir deux à la fois. « Tout montrer » revient à tout. Vaut dans la carte de Home Assistant, dans « Ouvrir en grand » et dans l'onglet « Chambres ». Si le choix ne donne rien parmi les temps forts, la page le dit et propose « Voir tout ».
 ## 0.10.1 — 14 novembre 2026

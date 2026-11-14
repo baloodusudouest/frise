@@ -67,6 +67,18 @@ class Immich:
         albums = self._lire("/albums", "la lecture des albums d'une photo", assetId=photo).json()
         return albums[0].get("albumName", "") if albums else ""
 
+    def album_complet(self, photo: str, limite: int = 600) -> dict | None:
+        """0.12 : le premier album qui contient la photo, avec ses photos (les plus anciennes d'abord) ; None sans album."""
+        albums = self._lire("/albums", "la lecture des albums d'une photo", assetId=photo).json()
+        if not albums:
+            return None
+        a = self._lire(f"/albums/{albums[0]['id']}", "la lecture d'un album").json()
+        actifs = [x for x in a.get("assets") or [] if not x.get("isTrashed") and x.get("visibility", "timeline") != "hidden"]
+        actifs.sort(key=lambda x: x.get("localDateTime") or x.get("fileCreatedAt") or "")
+        return {"id": a.get("id", ""), "nom": a.get("albumName", ""), "total": len(actifs),
+                "photos": [{"id": x["id"], "video": x.get("type") == "VIDEO", "checksum": x.get("checksum") or "",
+                            "personnes": [p.get("id") for p in x.get("people") or []]} for x in actifs[:limite]]}
+
     def flux(self, chemin: str, quoi: str, entetes: dict[str, str]) -> httpx.Response:
         """0.10 : une vidéo, lue par morceaux (l'en-tête Range du navigateur est transmis). À fermer après usage."""
         try:

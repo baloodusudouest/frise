@@ -133,6 +133,30 @@ def test_une_etape_et_ses_photos(page):
     sans_debordement(page)
     page.keyboard.press("Escape")
     assert page.locator(".plein").count() == 0 and page.locator(".galerie").is_visible()
+
+
+def test_012_voir_tout_l_album(page):
+    page.goto(page.base + "/#/chemin/" + CAMILLE)
+    page.reload()                                               # repart d'une page sans étape ouverte
+    page.get_by_role("button", name="Mariage de Camille et Hugo, 40 photos").click()
+    page.get_by_role("button", name="Photo 1", exact=True).click()
+    page.get_by_role("button", name="Voir tout l'album").click()
+    album = page.get_by_role("dialog", name="Album Mariage de Camille et Hugo")
+    album.wait_for()
+    album.locator(".grille li").first.wait_for()
+    assert album.locator(".grille li").count() == 40
+    album.get_by_role("button", name="Photo 3", exact=True).click()
+    assert album.get_by_role("group", name="Photo 3 sur 40").is_visible()
+    page.keyboard.press("ArrowRight")
+    assert album.get_by_role("group", name="Photo 4 sur 40").is_visible()
+    page.keyboard.press("Escape")                               # revient à la grille de l'album
+    assert album.locator(".grille").is_visible()
+    sans_debordement(page)
+    page.keyboard.press("Escape")                               # ferme l'album, la photo de l'étape reste ouverte
+    assert album.count() == 0 and page.locator(".plein").is_visible()
+    page.keyboard.press("Escape")                               # la photo : l'étape reste ouverte, comme le test précédent la laisse
+    assert page.locator(".galerie").is_visible()
+
     page.keyboard.press("Escape")
     assert page.locator(".galerie").count() == 0
 
