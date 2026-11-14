@@ -1,6 +1,9 @@
 # Journal des versions
 
 
+
+## 0.11.0 — 14 novembre 2026
+- **Page d'invité à plusieurs : filtrer par personne.** Les prénoms et « Ensemble » de la légende sont maintenant des boutons : un clic ne garde que les étapes de cette personne (ou des moments ensemble), un second clic retire le filtre ; on peut en choisir deux à la fois. « Tout montrer » revient à tout. Vaut dans la carte de Home Assistant, dans « Ouvrir en grand » et dans l'onglet « Chambres ». Si le choix ne donne rien parmi les temps forts, la page le dit et propose « Voir tout ».
 ## 0.10.1 — 14 novembre 2026
 - **Sillage passe en lavande crépuscule** (`#a98fd8`, le miel doré avant), icône comprise. L'or est gardé pour l'Anneau : carnet, Sillage et l'Anneau avaient trois ors voisins. Dans la frise de plusieurs invités, le quatrième invité prend l'ancien miel (sa lavande était trop proche des moments ensemble, qui suivent la couleur de Sillage).
 

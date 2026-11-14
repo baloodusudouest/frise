@@ -242,7 +242,7 @@ def test_050_deux_invites_le_chemin_commun(page):
     page.context.clear_cookies()
     page.goto(page.base + jetons["couple"])
     page.get_by_text("Votre chemin ensemble").wait_for()
-    assert page.locator(".legende li").all_inner_texts() == ["Camille", "Hugo", "Ensemble"]   # 0.7 : une couleur chacun
+    assert page.locator(".legende li").all_inner_texts() == ["Camille", "Hugo", "Ensemble"]   # 0.7 : une couleur chacun (0.11 : des boutons)
     if page.get_by_role("button", name="Tout", exact=True).count():
         page.get_by_role("button", name="Tout", exact=True).click()
     titres = [t.strip() for t in page.locator(".chapitre").all_inner_texts()]
@@ -251,6 +251,16 @@ def test_050_deux_invites_le_chemin_commun(page):
     assert "Ensemble" in mariage.inner_text().title()
     couleurs = set(page.locator(".etape.colore").evaluate_all("els => els.map(e => getComputedStyle(e.querySelector('.carte')).borderLeftColor)"))
     assert len(couleurs) == 3                                                           # Camille, Hugo, ensemble
+    # 0.11 : un clic sur un prénom ne garde que ses étapes ; plusieurs à la fois ; « Tout montrer » revient à tout
+    toutes = page.locator(".etape").count()
+    page.locator(".legende").get_by_role("button", name="Ensemble").click()
+    qui = set(t.strip().title() for t in page.locator(".etape .qui").all_inner_texts())
+    assert qui == {"Ensemble"} and 0 < page.locator(".etape").count() < toutes
+    page.locator(".legende").get_by_role("button", name="Camille").click()
+    assert set(t.strip().title() for t in page.locator(".etape .qui").all_inner_texts()) <= {"Ensemble", "Camille"}
+    assert page.locator(".legende").get_by_role("button", name="Camille").get_attribute("aria-pressed") == "true"
+    page.locator(".legende").get_by_role("button", name="Tout montrer").click()
+    assert page.locator(".etape").count() == toutes
     page.goto(page.base + jetons["inconnu"])
     page.get_by_text("Pas encore de souvenirs ici").wait_for()
     page.goto(page.base + "/invite/jeton-inconnu")

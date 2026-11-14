@@ -12,6 +12,9 @@
   let tout = $state(false)
   let rang = $state(0)
   let grande = $state(null) // 0.8 : l'étape dont la photo phare est ouverte en grand
+  // 0.11 : plusieurs invités : un clic sur un prénom ou sur « Ensemble » ne garde que ces étapes (plusieurs à la fois) ; rien de choisi = tout
+  let choisis = $state([])
+  const basculer = (k) => (choisis = choisis.includes(k) ? choisis.filter((x) => x !== k) : [...choisis, k])
 
   const chemins = $derived(d ? (d.commun ? [d.commun] : d.chacun) : [])
   const vu = $derived(chemins[Math.min(rang, chemins.length - 1)] || null)
@@ -20,7 +23,7 @@
     if (!vu) return []
     let i = 0
     return vu.chapitres
-      .map((c) => ({ ...c, etapes: c.etapes.filter((e) => tout || !forts || e.temps_fort).map((e) => ({ ...e, cote: i++ % 2 ? 'droite' : 'gauche' })) }))
+      .map((c) => ({ ...c, etapes: c.etapes.filter((e) => (tout || !forts || e.temps_fort) && (!choisis.length || choisis.includes(e.qui ?? 'ensemble'))).map((e) => ({ ...e, cote: i++ % 2 ? 'droite' : 'gauche' })) }))
       .filter((c) => c.etapes.length)
   })
   const ageDit = (a) => (a == null ? '' : a === 0 ? 'avant 1 an' : a === 1 ? 'à 1 an' : `à ${a} ans`)
@@ -71,16 +74,19 @@
     <header class="entete">
       <h1>{d.commun ? 'Votre chemin ensemble' : chemins.length > 1 ? 'Vos chemins' : 'Votre chemin'}</h1>
       {#if vu.ensemble}
-        <ul class="legende" aria-label="Couleurs">
-          {#each vu.invites as n, i}<li style:--qui={couleur(i)}>{prenom(n)}</li>{/each}
-          <li style:--qui={couleur('ensemble')}>Ensemble</li>
+        <ul class="legende" aria-label="Montrer le chemin de">
+          {#each vu.invites as n, i}
+            <li style:--qui={couleur(i)}><button type="button" aria-pressed={choisis.includes(i)} onclick={() => basculer(i)}>{prenom(n)}</button></li>
+          {/each}
+          <li style:--qui={couleur('ensemble')}><button type="button" aria-pressed={choisis.includes('ensemble')} onclick={() => basculer('ensemble')}>Ensemble</button></li>
+          {#if choisis.length}<li class="tous"><button type="button" onclick={() => (choisis = [])}>Tout montrer</button></li>{/if}
         </ul>
       {/if}
     </header>
 
     {#if chemins.length > 1}
       <div class="onglets" role="group" aria-label="Chemin de">
-        {#each chemins as c, i}<button type="button" aria-pressed={i === rang} onclick={() => (rang = i)}>{c.nom}</button>{/each}
+        {#each chemins as c, i}<button type="button" aria-pressed={i === rang} onclick={() => { rang = i; choisis = [] }}>{c.nom}</button>{/each}
       </div>
     {/if}
     {#if forts > 0 && forts < vu.etapes}
@@ -90,6 +96,10 @@
       </div>
     {/if}
 
+    {#if choisis.length && !chapitres.length}
+      <p class="vide" role="status">Rien ici pour ce choix{!tout && forts ? ' parmi les temps forts' : ''}.
+        {#if !tout && forts}<button type="button" class="lien" onclick={() => (tout = true)}>Voir tout</button>{/if}</p>
+    {/if}
     {#key vu.nom}
       <div class="chemin" bind:this={boite} style:--avancee={avancee}>
         {#each chapitres as c (c.cle)}
@@ -184,8 +194,15 @@
   .entete { display: grid; gap: 0.5rem; margin-bottom: 0.9rem; }
   .entete h1 { margin: 0; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted-foreground); }
   .legende { display: flex; flex-wrap: wrap; gap: 0.35rem 1rem; margin: 0; padding: 0; list-style: none; font-size: 0.92rem; }
-  .legende li { display: inline-flex; align-items: center; gap: 0.4rem; }
-  .legende li::before { content: ""; width: 0.75rem; height: 0.75rem; border-radius: 50%; background: var(--qui); }
+  .legende li { display: inline-flex; }
+  .legende button { display: inline-flex; align-items: center; gap: 0.45rem; min-height: 2.5rem; padding: 0 0.85rem; border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--qui) 45%, transparent); background: transparent; color: inherit; font: inherit; cursor: pointer; }
+  .legende button::before { content: ""; width: 0.75rem; height: 0.75rem; border-radius: 50%; background: var(--qui); }
+  .legende button[aria-pressed='true'] { background: color-mix(in srgb, var(--qui) 22%, transparent); border-color: var(--qui); font-weight: 600; }
+  .legende .tous button { border-color: transparent; text-decoration: underline; text-underline-offset: 3px; opacity: 0.8; }
+  .legende .tous button::before { display: none; }
+  .vide { margin: 1rem 0; opacity: 0.85; }
+  .vide .lien { border: 0; background: none; color: inherit; text-decoration: underline; cursor: pointer; font: inherit; padding: 0 0.25rem; min-height: 2.5rem; }
   .bascule { margin-bottom: 0.9rem; }
   .bascule button { min-height: 2.25rem; font-size: 0.85rem; }
   .colore .carte { border-left: 4px solid var(--qui); }
